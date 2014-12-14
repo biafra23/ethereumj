@@ -29,7 +29,7 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
     }
 
     public ProgramInvokeMockImpl() {
-        this.repository = new RepositoryImpl("blockchainMoc", "detailsMoc", "stateMoc");
+        this.repository = new RepositoryImpl("detailsMoc", "stateMoc");
         this.repository.createAccount(ownerAddress);
         
         this.repository.createAccount(contractAddress);
@@ -86,6 +86,10 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
     public DataWord getGas() {
     	
         return new DataWord(gasLimit);
+    }
+
+    public void setGas(long gasLimit){
+        this.gasLimit = gasLimit;
     }
 
     /*          CALLVALUE op    */
@@ -145,6 +149,18 @@ public class ProgramInvokeMockImpl implements ProgramInvoke {
         byte[] prevHash = Hex.decode("961CB117ABA86D1E596854015A1483323F18883C2D745B0BC03E87F146D2BB1C");
         return new DataWord(prevHash);
     }
+
+    @Override
+    public int countNonZeroData(){
+
+        int counter = 0;
+        for (int i = 0; i < msgData.length; ++i){
+
+            if (msgData[i] != 0) ++counter;
+        }
+        return counter;
+    }
+
 
     @Override
     public DataWord getCoinbase() {

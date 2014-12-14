@@ -2,10 +2,13 @@ package org.ethereum.net.shh;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import org.ethereum.manager.WorldManager;
 import org.ethereum.net.MessageQueue;
-import org.ethereum.net.PeerListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 /**
  * Process the messages between peers with 'shh' capability on the network.
@@ -14,19 +17,24 @@ import org.slf4j.LoggerFactory;
  *
  *
  */
+@Component
+@Scope("prototype")
 public class ShhHandler extends SimpleChannelInboundHandler<ShhMessage> {
 
-	public final static byte VERSION = 0x1;
+	public final static byte VERSION = 1;
     private MessageQueue msgQueue = null;
 
     private boolean active = false;
 
 	private final static Logger logger = LoggerFactory.getLogger("net");
 
+    @Autowired
+    WorldManager worldManager;
+
     public ShhHandler(){
     }
 
-	public ShhHandler(MessageQueue msgQueue, PeerListener peerListener) {
+	public ShhHandler(MessageQueue msgQueue) {
         this.msgQueue = msgQueue;
 	}
 
@@ -37,6 +45,8 @@ public class ShhHandler extends SimpleChannelInboundHandler<ShhMessage> {
 
         if (ShhMessageCodes.inRange(msg.getCommand().asByte()))
             logger.info("ShhHandler invoke: [{}]", msg.getCommand());
+
+        worldManager.getListener().trace(String.format( "ShhHandler invoke: [%s]", msg.getCommand()));
 
 		switch (msg.getCommand()) {
             case STATUS:
@@ -69,10 +79,15 @@ public class ShhHandler extends SimpleChannelInboundHandler<ShhMessage> {
 
     public void activate(){
         logger.info("SHH protocol activated");
+        worldManager.getListener().trace("SHH protocol activated");
         this.active = true;
     }
 
     public boolean isActive() {
         return active;
+    }
+
+    public void setMsgQueue(MessageQueue msgQueue) {
+        this.msgQueue = msgQueue;
     }
 }

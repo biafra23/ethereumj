@@ -47,6 +47,7 @@ public class Program {
     byte[]   ops;
     int      pc = 0;
     byte     lastOp = 0;
+    byte 	 previouslyExecutedOp = 0;
     boolean  stopped = false;
 
     ProgramInvoke invokeData;
@@ -76,10 +77,30 @@ public class Program {
         return ops[pc];
     }
 
+    /**
+     * Last Op can only be set publicly (no getLastOp method), is used for logging
+     * @param op
+     */
     public void setLastOp(byte op) {
         this.lastOp = op;
     }
-
+    
+    /**
+     * Should be set only after the OP is fully executed
+     * @param op
+     */
+    public void setPreviouslyExecutedOp(byte op) {
+    	this.previouslyExecutedOp = op;
+    }
+    
+    /**
+     * returns the last fully executed OP
+     * @return
+     */
+    public byte getPreviouslyExecutedOp() {
+    	return this.previouslyExecutedOp;
+    }
+    
     public void stackPush(byte[] data) {
         DataWord stackWord = new DataWord(data);
         stack.push(stackWord);
@@ -114,13 +135,8 @@ public class Program {
     public void setPC(int pc) {
         this.pc = pc;
         
-        if (this.pc == ops.length)
+        if (this.pc >= ops.length)
             stop();
-        
-        if (this.pc > ops.length) {
-            stop();
-            throw new PcOverflowException("pc overflow pc=" + pc);
-        }
     }
 
     public boolean isStopped() {
@@ -142,10 +158,8 @@ public class Program {
 
     public byte[] sweep(int n) {
 
-        if (pc + n > ops.length) {
+        if (pc + n > ops.length)
             stop();
-            throw new PcOverflowException("pc overflow sweep n: " + n + " pc: " + pc);
-        }
 
         byte[] data = Arrays.copyOfRange(ops, pc, pc + n);
         pc += n;
@@ -241,7 +255,7 @@ public class Program {
      * @param offset the memory address offset
      * @param size the number of bytes to allocate
      */
-    protected void allocateMemory(int offset, int size) {
+    public void allocateMemory(int offset, int size) {
 
         int memSize = memory != null ? memory.limit() : 0;
 		double newMemSize = Math.max(memSize, size != 0 ? 
@@ -251,6 +265,7 @@ public class Program {
         	tmpMem.put(memory.array(), 0, memory.limit());
         memory = tmpMem;
     }
+
 
     public void suicide(DataWord obtainer) {
 
@@ -303,17 +318,16 @@ public class Program {
         result.getRepository().addBalance(senderAddress, endowment.negate());
         BigInteger newBalance = result.getRepository().addBalance(newAddress, endowment);
 
-        Repository trackRepository = result.getRepository().getTrack();
-        trackRepository.startTracking();
-        
+        Repository track = result.getRepository().startTracking();
+
         // [3] UPDATE THE NONCE
         // (THIS STAGE IS NOT REVERTED BY ANY EXCEPTION)
-        trackRepository.increaseNonce(senderAddress);
+        track.increaseNonce(senderAddress);
 
         // [5] COOK THE INVOKE AND EXECUTE
 		ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
 				this, new DataWord(newAddress), DataWord.ZERO, gasLimit,
-				newBalance, null, trackRepository);
+				newBalance, null, track);
 		
         ProgramResult result = null;
         
@@ -323,22 +337,26 @@ public class Program {
             vm.play(program);
             result = program.getResult();
             this.result.addDeleteAccounts(result.getDeleteAccounts());
+            this.result.addLogInfos(result.getLogInfoList());
         }
         
         if (result != null && 
         		result.getException() != null &&
                 result.getException() instanceof Program.OutOfGasException) {
-            logger.info("contract run halted by OutOfGas: new contract init ={}" , Hex.toHexString(newAddress));
+            logger.debug("contract run halted by Exception: contract: [{}], exception: [{}]",
+                    Hex.toHexString(newAddress),
+                    result.getException());
 
-            trackRepository.rollback();
+
+            track.rollback();
             stackPushZero();
             return;
         }
 
         // 4. CREATE THE CONTRACT OUT OF RETURN
         byte[] code    = result.getHReturn().array();
-        trackRepository.saveCode(newAddress, code);
-        trackRepository.commit();
+        track.saveCode(newAddress, code);
+        track.commit();
         
         // IN SUCCESS PUSH THE ADDRESS INTO THE STACK
         stackPush(new DataWord(newAddress));
@@ -407,14 +425,12 @@ public class Program {
         
         //  actual gas subtract
         this.spendGas(msg.getGas().longValue(), "internal call");
-
-        Repository trackRepository = result.getRepository().getTrack();
-        trackRepository.startTracking();
-
+        
+        Repository trackRepository = result.getRepository().startTracking();
 		ProgramInvoke programInvoke = ProgramInvokeFactory.createProgramInvoke(
 				this, new DataWord(contextAddress), msg.getEndowment(),
 				msg.getGas(), contextBalance, data, trackRepository);
-
+		
         ProgramResult result = null;
 
         if (programCode != null && programCode.length != 0) {
@@ -424,12 +440,16 @@ public class Program {
             result = program.getResult();
             this.getProgramTrace().merge(program.getProgramTrace());
             this.result.addDeleteAccounts(result.getDeleteAccounts());
+            this.result.addLogInfos(result.getLogInfoList());
         }
         
         if (result != null &&
 	            result.getException() != null &&
 	            result.getException() instanceof Program.OutOfGasException) {
-            gasLogger.info("contract run halted by OutOfGas: contract={}" , Hex.toHexString(contextAddress));
+            gasLogger.debug("contract run halted by Exception: contract: [{}], exception: [{}]",
+                    Hex.toHexString(contextAddress),
+                    result.getException());
+
 
             trackRepository.rollback();
             stackPushZero();
@@ -811,11 +831,13 @@ public class Program {
 	}
 
 	@SuppressWarnings("serial")
-	public class OutOfGasException extends RuntimeException {
-	}
+	public class OutOfGasException extends RuntimeException {}
 	
     @SuppressWarnings("serial")
     public class IllegalOperationException extends RuntimeException {}
+    
+    @SuppressWarnings("serial")
+    public class BadJumpDestinationException extends RuntimeException {}
 	
 	@SuppressWarnings("serial")
 	public class StackTooSmallException extends RuntimeException {
@@ -823,11 +845,21 @@ public class Program {
 			super(message);
 		}
 	}
-	
-	@SuppressWarnings("serial")
-	public class PcOverflowException extends RuntimeException {
-		public PcOverflowException(String message) {
-			super(message);
-		}
-	}
+
+    /**
+     * used mostly for testing reasons
+     */
+    public ByteBuffer getMemory(){
+        return memory;
+    }
+
+    /**
+     * used mostly for testing reasons
+     */
+    public void initMem(ByteBuffer memory){
+        this.memory = memory;
+    }
+
+
+
 }

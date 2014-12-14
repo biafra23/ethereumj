@@ -21,10 +21,6 @@ public class EthereumListenerAdapter implements EthereumListener {
     }
 
     @Override
-    public void onPreloadedBlock(Block block) {
-    }
-
-    @Override
     public void onRecvMessage(Message message) {
     }
 
@@ -42,6 +38,11 @@ public class EthereumListenerAdapter implements EthereumListener {
 
     @Override
     public void onSyncDone() {
+
+    }
+
+    @Override
+    public void onNoConnections(){
 
     }
 }

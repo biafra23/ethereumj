@@ -2,12 +2,15 @@ package org.ethereum.vm;
 
 import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
+import org.ethereum.facade.Blockchain;
 import org.ethereum.facade.Repository;
 import org.ethereum.manager.WorldManager;
 import org.ethereum.util.ByteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
 
@@ -17,23 +20,27 @@ import java.math.BigInteger;
  * @author: Roman Mandeleil
  * Created on: 08/06/2014 09:59
  */
+@Component
 public class ProgramInvokeFactory {
 
     private static final Logger logger = LoggerFactory.getLogger("VM");
 
+    @Autowired
+    private Blockchain blockchain;
+
     /** 
-     * This attribute defines the number of resursive calls allowed in the EVM
+     * This attribute defines the number of recursive calls allowed in the EVM
      * Note: For the JVM to reach this level without a StackOverflow exception,
      * ethereumj may need to be started with a JVM argument to increase 
      * the stack size. For example: -Xss10m
      */
-    private static final int MAX_CREATE_CALL_DEPTH = 1024; 
+    private static final int MAX_DEPTH = 1024; 
     
         // Invocation by the wire tx
-    public static ProgramInvoke createProgramInvoke(Transaction tx, Block block, Repository repository) {
+    public ProgramInvoke createProgramInvoke(Transaction tx, Block block, Repository repository) {
 
         // https://ethereum.etherpad.mozilla.org/26
-        Block lastBlock = WorldManager.getInstance().getBlockchain().getLastBlock();
+        Block lastBlock = blockchain.getBestBlock();
 
         /***         ADDRESS op       ***/
         // YP: Get address of currently executing account.
@@ -123,7 +130,6 @@ public class ProgramInvokeFactory {
         return programInvoke;
     }
 
-
     /**
      * This invocation created for contract call contract
      */
@@ -150,8 +156,6 @@ public class ProgramInvokeFactory {
         DataWord gasLimit = program.getGaslimit();
 
         if (logger.isInfoEnabled()) {
-
-
             logger.info("Internal call: \n" +
                             "address={}\n" +
                             "origin={}\n"  +
@@ -174,7 +178,7 @@ public class ProgramInvokeFactory {
                     gasPrice.longValue(),
                     gas.longValue(),
                     callValue.longValue(),
-                    data == null ? "null": Hex.toHexString(data),
+                    data == null ? "": Hex.toHexString(data),
                     Hex.toHexString(lastHash.getData()),
                     Hex.toHexString(coinbase.getLast20Bytes()),
                     timestamp.longValue(),
@@ -183,13 +187,11 @@ public class ProgramInvokeFactory {
                     gasLimit.longValue());
         }
         
-        int newCallDepth = program.invokeData.getCallDeep() + 1;
-        if (newCallDepth >= MAX_CREATE_CALL_DEPTH) {
+        if (program.invokeData.getCallDeep() >= MAX_DEPTH)
         	throw program.new OutOfGasException();
-        }
 
         return new ProgramInvokeImpl(address, origin, caller, balance, gasPrice, gas, callValue,
                 data, lastHash, coinbase, timestamp, number, difficulty, gasLimit,
-                repository, newCallDepth);
+                repository, program.invokeData.getCallDeep()+1);
     }
 }

@@ -3,8 +3,10 @@ package org.ethereum.facade;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.Wallet;
 import org.ethereum.listener.EthereumListener;
+import org.ethereum.manager.AdminInfo;
 import org.ethereum.net.client.PeerClient;
 import org.ethereum.net.peerdiscovery.PeerInfo;
+import org.ethereum.net.server.ChannelManager;
 
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -124,8 +126,12 @@ public interface Ethereum {
      */
     public Repository getRepository();
 
+
+    public void init();
 //  2.   // is blockchain still loading - if buffer is not empty
 
+    public AdminInfo getAdminInfo();
 
+    public ChannelManager getChannelManager();
 
 }

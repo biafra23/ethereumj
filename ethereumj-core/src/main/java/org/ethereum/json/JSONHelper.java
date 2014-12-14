@@ -72,9 +72,7 @@ public class JSONHelper {
     	blockNode.put("coinbase", Hex.toHexString(block.getCoinbase()));
     	blockNode.put("difficulty", new BigInteger(1, block.calcDifficulty()).toString());
     	blockNode.put("extra_data", "0x");
-    	blockNode.put("gas_limit", String.valueOf(block.calcGasLimit()));
     	blockNode.put("gas_used", String.valueOf(gasUsed));
-    	blockNode.put("min_gas_price", String.valueOf(block.getMinGasPrice()));
     	blockNode.put("nonce", "0x" + Hex.toHexString(block.getNonce()));
     	blockNode.put("number", String.valueOf(block.getNumber()));
     	blockNode.put("prevhash", "0x" + Hex.toHexString(block.getParentHash()));

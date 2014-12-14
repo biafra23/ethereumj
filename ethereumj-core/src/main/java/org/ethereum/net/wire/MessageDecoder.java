@@ -4,21 +4,31 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
+import org.ethereum.listener.EthereumListener;
+import org.ethereum.manager.WorldManager;
 import org.ethereum.net.message.Message;
 import org.ethereum.net.message.MessageFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
  * The PacketDecoder parses every valid Ethereum packet to a Message object
  */
+@Component
+@Scope("prototype")
 public class MessageDecoder extends ByteToMessageDecoder {
 
     private static final Logger loggerWire = LoggerFactory.getLogger("wire");
     private static final Logger loggerNet = LoggerFactory.getLogger("net");
+
+    @Autowired
+    WorldManager worldManager;
 
 	@Override
 	protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
@@ -37,6 +47,9 @@ public class MessageDecoder extends ByteToMessageDecoder {
 
 		if (loggerNet.isInfoEnabled())
             loggerNet.info("From: \t{} \tRecv: \t{}", ctx.channel().remoteAddress(), msg);
+
+        EthereumListener listener = worldManager.getListener();
+        listener.onRecvMessage(msg);
 
 		out.add(msg);
         in.markReaderIndex();

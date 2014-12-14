@@ -78,6 +78,8 @@ public class DataWord implements Comparable<DataWord> {
      */
     public int intValue() {
     	BigDecimal tmpValue = new BigDecimal(this.value());
+    	if(this.bytesOccupied() > 4)
+    		return Integer.MAX_VALUE;
     	return tmpValue.intValueExact();
     }
     
@@ -150,6 +152,11 @@ public class DataWord implements Comparable<DataWord> {
             this.data[i] = (byte)  (1 + this.data[i] & 0xFF);
             if (this.data[i] != 0) break;
         }
+    }
+    
+    public void bnot() {
+        if (this.isZero()) return;
+        this.data = ByteUtil.copyToArray(MAX_VALUE.subtract(this.value()));
     }
 
     // By	: Holger
@@ -273,7 +280,7 @@ public class DataWord implements Comparable<DataWord> {
 
         return true;
     }
-
+    
     @Override
     public int hashCode() {
         return java.util.Arrays.hashCode(data);
@@ -287,5 +294,20 @@ public class DataWord implements Comparable<DataWord> {
                 o.getData(), 0, o.getData().length);
         // Convert result into -1, 0 or 1 as is the convention
         return (int) Math.signum(result);
+    }
+
+	public void signExtend(byte k) {
+		if (0 > k || k > 31)
+			throw new IndexOutOfBoundsException();
+		byte mask = this.sValue().testBit((k * 8) + 7) ? (byte) 0xff : 0;
+		for (int i = 31; i > k; i--) {
+			this.data[31 - i] = mask;
+		}
+	}
+
+    public int bytesOccupied(){
+        int firstNonZero = ByteUtil.firstNonZeroByte(data);
+        if (firstNonZero == -1) return 0;
+        return 31 - firstNonZero + 1;
     }
 }

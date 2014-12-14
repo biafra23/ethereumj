@@ -8,6 +8,7 @@ import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 /**
  * Utility class to retrieve property values from the system.properties files
@@ -17,7 +18,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SystemProperties {
 
-	private static Logger logger = LoggerFactory.getLogger(SystemProperties.class);
+	private static Logger logger = LoggerFactory.getLogger("general");
 
 	private static int      DEFAULT_TX_APPROVE_TIMEOUT = 10;
 	private static String   DEFAULT_DISCOVERY_PEER_LIST = "poc-7.ethdev.com:30303";
@@ -28,6 +29,7 @@ public class SystemProperties {
 	private static int      DEFAULT_ACTIVE_PEER_CHANNEL_TIMEOUT = 5;
 	private static Boolean  DEFAULT_DB_RESET = false;
 	private static Boolean  DEFAULT_DUMP_FULL = false;
+	private static Boolean  DEFAULT_RECORD_BLOCKS = false;
 	private static String   DEFAULT_DUMP_DIR = "dmp";
 	private static String   DEFAULT_DUMP_STYLE = "standard+";
 	private static Integer  DEFAULT_VMTRACE_BLOCK = 0;
@@ -43,12 +45,17 @@ public class SystemProperties {
 	private static String   DEFAULT_HELLO_PHRASE = "Dev";
     private static Boolean  DEFAULT_VM_TRACE     = false;
     private static String   DEFAULT_VM_TRACE_DIR = "dmp";
+    private static int      DEFAULT_PEER_LISTEN_PORT = 30303;
+    
+    /* Testing */
+    private static Boolean  DEFAULT_VMTEST_LOAD_LOCAL = false;
 
     private static List<String> DEFAULT_PROTOCOL_LIST = Arrays.asList("eth", "shh");
 
 	public static SystemProperties CONFIG = new SystemProperties();
 	private Properties prop = new Properties();
 	private InputStream input = null;
+
 
 	public SystemProperties() {
 
@@ -58,6 +65,7 @@ public class SystemProperties {
 			File file = new File(fileName);
 
 			if (file.exists()) {
+                logger.info("config loaded from {}", fileName);
 				input = new FileInputStream(file);
 			} else {
 				fileName = "system.properties";
@@ -114,15 +122,27 @@ public class SystemProperties {
 		return Boolean.parseBoolean(prop.getProperty("database.reset"));
 	}
 
+    public void setDatabaseReset(Boolean reset){
+        prop.setProperty("database.reset", reset.toString());
+    }
+
 	public String activePeerIP() {
 		if (prop.isEmpty()) return DEFAULT_ACTIVE_PEER_IP;
 		return prop.getProperty("peer.active.ip");
 	}
 
+    public void setActivePeerIP(String host){
+        prop.setProperty("peer.active.ip", host.toString());
+    }
+
 	public int activePeerPort() {
 		if (prop.isEmpty()) return DEFAULT_ACTIVE_PORT;
 		return Integer.parseInt(prop.getProperty("peer.active.port"));
 	}
+
+    public void setActivePeerPort(Integer port){
+        prop.setProperty("peer.active.port", port.toString());
+    }
 
 	public String samplesDir() {
 		if (prop.isEmpty()) return DEFAULT_SAMPLES_DIR;
@@ -143,6 +163,12 @@ public class SystemProperties {
 		if (prop.isEmpty()) return DEFAULT_TRACE_STARTBLOCK;
 		return Integer.parseInt(prop.getProperty("trace.startblock"));
 	}
+
+    public Boolean recordBlocks() {
+        if (prop.isEmpty()) return DEFAULT_RECORD_BLOCKS;
+        return Boolean.parseBoolean(prop.getProperty("record.blocks"));
+    }
+
 
 	public Boolean dumpFull() {
 		if (prop.isEmpty()) return DEFAULT_DUMP_FULL;
@@ -168,6 +194,10 @@ public class SystemProperties {
 		if (prop.isEmpty()) return DEFAULT_DATABASE_DIR;
 		return prop.getProperty("database.dir");
 	}
+
+    public void setDataBaseDir(String dataBaseDir){
+        prop.setProperty("database.dir", dataBaseDir);
+    }
 
 	public Boolean dumpCleanOnRestart() {
 		if (prop.isEmpty()) return DEFAULT_DUMP_CLEAN_ON_RESTART;
@@ -233,6 +263,15 @@ public class SystemProperties {
         return prop.getProperty("vm.structured.dir");
     }
 
+    public int listenPort(){
+        if (prop.isEmpty()) return DEFAULT_PEER_LISTEN_PORT;
+        return Integer.parseInt(prop.getProperty("peer.listen.port"));
+    }
+
+    public void setListenPort(Integer port){
+        prop.setProperty("peer.listen.port", port.toString());
+    }
+
 	public void print() {
 		Enumeration<?> e = prop.propertyNames();
 		while (e.hasMoreElements()) {
@@ -242,6 +281,16 @@ public class SystemProperties {
 				logger.info("Key: " + key + ", Value: " + value);
 		}
 	}
+	
+	/*
+	 * 
+	 * Testing
+	 * 
+	 */
+	public boolean vmTestLoadLocal() {
+        if (prop.isEmpty() || !prop.containsKey("GitHubTests.VMTest.loadLocal")) return DEFAULT_VMTEST_LOAD_LOCAL;
+        return Boolean.parseBoolean(prop.getProperty("GitHubTests.VMTest.loadLocal"));
+    }
 	
 	public static void main(String args[]) {
 		SystemProperties systemProperties = new SystemProperties();

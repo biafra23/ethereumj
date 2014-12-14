@@ -12,7 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.BigIntegers;
 
+import java.math.BigInteger;
 import java.security.SignatureException;
+
+import static org.ethereum.util.ByteUtil.EMPTY_BYTE_ARRAY;
+import static org.ethereum.util.ByteUtil.ZERO_BYTE_ARRAY;
 
 /**
  * A transaction (formally, T) is a single cryptographically 
@@ -57,6 +61,8 @@ public class Transaction {
     /* the elliptic curve signature
      * (including public key recovery bits) */
     private ECDSASignature signature;
+
+    private byte[] sendAddress;
 
     /* Tx in encoded form */
     private byte[] rlpEncoded;
@@ -120,20 +126,26 @@ public class Transaction {
 
     public byte[] getHash() {
         if (!parsed) rlpParse();
+        byte[] plainMsg = this.getEncoded();
+        return HashUtil.sha3(plainMsg);
+    }
+
+    public byte[] getRawHash() {
+        if (!parsed) rlpParse();
         byte[] plainMsg = this.getEncodedRaw();
         return HashUtil.sha3(plainMsg);
     }
 
+
     public byte[] getNonce() {
         if (!parsed) rlpParse();
 
-        if (nonce == null) return new byte[]{0};
-        return nonce;
+        return nonce == null ? ZERO_BYTE_ARRAY : nonce  ;
     }
 
     public byte[] getValue() {
         if (!parsed) rlpParse();
-        return value;
+        return value == null ? ZERO_BYTE_ARRAY : value;
     }
 
     public byte[] getReceiveAddress() {
@@ -176,14 +188,17 @@ public class Transaction {
      */
 
     public ECKey getKey() {
-        byte[] hash = this.getHash();
+        byte[] hash = this.getRawHash();
         return ECKey.recoverFromSignature(signature.v, signature, hash, true);
     }
 
     public byte[] getSender() {
 		try {
-			ECKey key = ECKey.signatureToKey(getHash(), getSignature().toBase64());
-			return key.getAddress();
+            if (sendAddress == null) {
+                ECKey key = ECKey.signatureToKey(getRawHash(), getSignature().toBase64());
+                sendAddress = key.getAddress();
+            }
+			return sendAddress;
 		} catch (SignatureException e) {
 			logger.error(e.getMessage(), e);
 		}
@@ -191,7 +206,7 @@ public class Transaction {
     }
 
     public void sign(byte[] privKeyBytes) throws MissingPrivateKeyException {
-        byte[] hash = this.getHash();
+        byte[] hash = this.getRawHash();
         ECKey key = ECKey.fromPrivate(privKeyBytes).decompress();
         this.signature = key.sign(hash);
         this.rlpEncoded = null;
@@ -211,21 +226,6 @@ public class Transaction {
                 ", signatureR=" + ByteUtil.toHexString(BigIntegers.asUnsignedByteArray(signature.r)) +
                 ", signatureS=" + ByteUtil.toHexString(BigIntegers.asUnsignedByteArray(signature.s)) +
                 "]";
-    }
-
-    public String toStylishString() {
-        if (!parsed) rlpParse();
-        return " <font color=\"${sub_header_color}\"> TransactionData </font>[" +  "<font color=\"${attribute_color}\"> hash</font>=" + ByteUtil.toHexString(hash) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> nonce</font>=" + ByteUtil.toHexString(nonce) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> gasPrice</font>=" + ByteUtil.toHexString(gasPrice) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> gas</font>=" + ByteUtil.toHexString(gasLimit) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> receiveAddress</font>=" + ByteUtil.toHexString(receiveAddress) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> value</font>=" + ByteUtil.toHexString(value) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> data</font>=" + ByteUtil.toHexString(data) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> signatureV</font>=" + signature.v + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> signatureR</font>=" + ByteUtil.toHexString(BigIntegers.asUnsignedByteArray(signature.r)) + "<br/>" +
-                "->  , <font color=\"${attribute_color}\"> signatureS</font>=" + ByteUtil.toHexString(BigIntegers.asUnsignedByteArray(signature.s)) + "<br/>" +
-                " ]";
     }
 
     /**
@@ -279,9 +279,9 @@ public class Transaction {
             r = RLP.encodeElement(BigIntegers.asUnsignedByteArray(signature.r));
             s = RLP.encodeElement(BigIntegers.asUnsignedByteArray(signature.s));
         } else {
-        	v = RLP.encodeElement(new byte[0]);
-        	r = RLP.encodeElement(new byte[0]);
-        	s = RLP.encodeElement(new byte[0]);
+        	v = RLP.encodeElement(EMPTY_BYTE_ARRAY);
+        	r = RLP.encodeElement(EMPTY_BYTE_ARRAY);
+        	s = RLP.encodeElement(EMPTY_BYTE_ARRAY);
         }
 
 		this.rlpEncoded = RLP.encodeList(nonce, gasPrice, gasLimit,

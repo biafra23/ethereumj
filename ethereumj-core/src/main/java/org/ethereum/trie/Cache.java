@@ -1,13 +1,13 @@
 package org.ethereum.trie;
 
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.db.ByteArrayWrapper;
 import org.ethereum.util.Value;
 import org.iq80.leveldb.DB;
+import org.iq80.leveldb.WriteBatch;
 
 /**
  * www.ethereumJ.com
@@ -75,17 +75,18 @@ public class Cache {
 			return;
 		}
 
+        WriteBatch batch = db.createWriteBatch();
+
 		for (ByteArrayWrapper key : this.nodes.keySet()) {
 			Node node = this.nodes.get(key);
 			if (node.isDirty()) {
-				this.db.put(key.getData(), node.getValue().encode());
+                batch.put(key.getData(), node.getValue().encode());
 				node.setDirty(false);
 			}
 		}
+
+        db.write(batch);
 		this.isDirty = false;
-		
-		// TODO come up with a way to clean up this.nodes 
-		// from memory without breaking consensus
 	}
 
 	public void undo() {

@@ -2,7 +2,6 @@ package org.ethereum.vm;
 
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.db.ContractDetails;
-import org.ethereum.vm.Program.OutOfGasException;
 
 import static org.ethereum.config.SystemProperties.CONFIG;
 
@@ -74,21 +73,20 @@ public class VM {
 	
     public void step(Program program) {
 
-        program.fullTrace();
-
         if (CONFIG.vmTrace())
             program.saveOpTrace();
     	
         try {
             OpCode op = OpCode.code(program.getCurrentOp());
-            
             if (op == null)
             	throw program.new IllegalOperationException();
-            
+
             program.setLastOp(op.val());
+            program.stackRequire(op.require());
 
             long oldMemSize = program.getMemSize();
             BigInteger newMemSize = BigInteger.ZERO;
+            long       copySize   = 0;
             Stack<DataWord> stack = program.getStack();
 
             String hint = "";
@@ -96,9 +94,7 @@ public class VM {
             long gasCost = GasCost.STEP;
             long gasBefore = program.getGas().longValue();
             int stepBefore = program.getPC();
-            
-            program.stackRequire(op.require());
-            
+                        
     		// Calculate fees and spend gas
             switch (op) {
                 case STOP: case SUICIDE:
@@ -109,11 +105,12 @@ public class VM {
         			DataWord newValue = stack.get(stack.size()-2);
                     DataWord oldValue =  program.storageLoad(stack.peek());
                     if (oldValue == null && !newValue.isZero())
-                    	gasCost = GasCost.SSTORE * 2;
+                    	gasCost = GasCost.SSTORE;
                     else if (oldValue != null && newValue.isZero())
-                        gasCost = GasCost.SSTORE * 0;
+                        // todo: GASREFUND counter policy
+                        System.currentTimeMillis();
                     else
-                        gasCost = GasCost.SSTORE;
+                        gasCost = GasCost.RESET_SSTORE;
         			break;
                 case SLOAD:
                     gasCost = GasCost.SLOAD;
@@ -138,14 +135,20 @@ public class VM {
         		case SHA3:
         			gasCost = GasCost.SHA3;
         			newMemSize = memNeeded(stack.peek(), stack.get(stack.size()-2));
+                    DataWord size = stack.get(stack.size()-2);
+                    long chunkUsed = (size.longValue() + 31) / 32;
+                    gasCost += chunkUsed * GasCost.SHA3_WORD;
         			break;
         		case CALLDATACOPY:
+                    copySize = stack.get(stack.size()-3).longValue();
         			newMemSize = memNeeded(stack.peek(), stack.get(stack.size()-3));
         			break;
         		case CODECOPY:
+                    copySize = stack.get(stack.size()-3).longValue();
         			newMemSize = memNeeded(stack.peek(), stack.get(stack.size()-3));
         			break;
         		case EXTCODECOPY:
+                    copySize = stack.get(stack.size()-4).longValue();
         			newMemSize = memNeeded(stack.get(stack.size()-2), stack.get(stack.size()-4));
         			break;
         		case CALL: case CALLCODE:
@@ -163,16 +166,30 @@ public class VM {
         			gasCost = GasCost.CREATE;
         			newMemSize = memNeeded(stack.get(stack.size()-2), stack.get(stack.size()-3));
         			break;
+                case LOG0: case LOG1: case LOG2: case LOG3: case LOG4:
+
+                    int nTopics = op.val() - OpCode.LOG0.val();
+                    newMemSize = memNeeded(stack.peek(), stack.get(stack.size()-2));
+                    gasCost = GasCost.LOG_GAS +
+                              GasCost.LOG_TOPIC_GAS * nTopics +
+                              GasCost.LOG_DATA_GAS  * stack.get(stack.size()-2).longValue();
+
+                    break;
+                case EXP:
+
+                    DataWord exp = stack.get(stack.size()-2);
+                    int bytesOccupied = exp.bytesOccupied();
+                    gasCost =  GasCost.EXP_GAS +  GasCost.EXP_BYTE_GAS * bytesOccupied;
+                    break;
                 default:
                     break;
             }
             program.spendGas(gasCost, op.name());
             
             // Avoid overflows
-            if(newMemSize.compareTo(MAX_GAS) == 1) {
+            if(newMemSize.compareTo(MAX_GAS) == 1)
             	throw program.new OutOfGasException();
-            }
-            
+
             // memory gas calc
             long memoryUsage = (newMemSize.longValue() + 31) / 32 * 32;            
 	        if (memoryUsage > oldMemSize) {
@@ -181,6 +198,12 @@ public class VM {
 				program.spendGas(memGas, op.name() + " (memory usage)");
 				gasCost += memGas;
 	        }
+
+            if (copySize > 0){
+                long copyGas = GasCost.COPY_GAS * (copySize + 31) / 32;
+                gasCost += copyGas;
+                program.spendGas(copyGas, op.name() + " (copy usage)");
+            }
 
 			// Log debugging line for VM
     		if(program.getNumber().intValue() == CONFIG.dumpBlock())
@@ -284,9 +307,22 @@ public class VM {
                     program.stackPush(word1);
                     program.step();
                 }	break;
-                case NEG:{
+                case SIGNEXTEND: {
+                    DataWord word1 = program.stackPop();
+                    BigInteger k = word1.value();
+
+                    if (k.compareTo(_32_) < 0) {
+                        DataWord word2 = program.stackPop();
+                        if (logger.isInfoEnabled())
+                            hint = word1 + "  " + word2.value();
+                        word2.signExtend(k.byteValue());
+                        program.stackPush(word2);
+                    }
+                    program.step();
+                }   break;
+                case NOT:{
                 	DataWord word1 = program.stackPop();
-                    word1.negate();
+                    word1.bnot();
 
                     if (logger.isInfoEnabled())
                         hint = "" + word1.value();
@@ -378,7 +414,7 @@ public class VM {
                     program.stackPush(word1);
                     program.step();
                 }	break;
-                case NOT: {
+                case ISZERO: {
                 	DataWord word1 = program.stackPop();
                     if (word1.isZero()) {
                         word1.getData()[31] = 1;
@@ -709,6 +745,32 @@ public class VM {
         			program.step();
 
                 }	break;
+                case LOG0: case LOG1: case LOG2: case LOG3: case LOG4:{
+
+                    DataWord address = program.programAddress;
+
+                    DataWord memStart = stack.pop();
+                    DataWord memOffset = stack.pop();
+
+                    int nTopics = op.val() - OpCode.LOG0.val();
+
+                    List<DataWord> topics = new ArrayList<DataWord>();
+                    for (int i = 0; i < nTopics; ++i){
+                        DataWord topic = stack.pop();
+                        topics.add(topic);
+                    }
+
+                    ByteBuffer data = program.memoryChunk(memStart, memOffset);
+
+                    LogInfo logInfo =
+                            new LogInfo(address.getLast20Bytes(), topics, data.array());
+
+                    if (logger.isInfoEnabled())
+                        hint = logInfo.toString();
+
+                    program.getResult().addLogInfo(logInfo);
+                    program.step();
+                }	break;
                 case MLOAD:{
                 	DataWord addr =  program.stackPop();
                     DataWord data =  program.memoryLoad(addr);
@@ -741,11 +803,11 @@ public class VM {
                     DataWord val = program.storageLoad(key);
 
                     if (logger.isInfoEnabled())
-					hint = "key: " + key + " value: " + val;
+                    	hint = "key: " + key + " value: " + val;
 
-                    if (val == null) {
+                    if (val == null)
                         val = key.and(DataWord.ZERO);
-                    }
+
                     program.stackPush(val);
                     program.step();
                 }	break;
@@ -762,9 +824,11 @@ public class VM {
                 case JUMP:{
                 	DataWord pos  =  program.stackPop();
                 	int nextPC = pos.intValue(); // possible overflow
-                	if (nextPC != 0 && program.getOp(nextPC-1) != OpCode.JUMPDEST.val())
-        				throw new BadJumpDestinationException();
-
+                	if(program.getPreviouslyExecutedOp() < OpCode.PUSH1.val() || program.getPreviouslyExecutedOp() > OpCode.PUSH32.val()) {
+                		if (nextPC != 0 && program.getOp(nextPC) != OpCode.JUMPDEST.val())
+            				throw program.new BadJumpDestinationException();
+                	}
+                	
                     if (logger.isInfoEnabled())
                         hint = "~> " + nextPC;
 
@@ -777,8 +841,13 @@ public class VM {
                     
                     if (!cond.isZero()) {
                     	int nextPC = pos.intValue(); // possible overflow
-                    	if (nextPC != 0 && program.getOp(nextPC-1) != OpCode.JUMPDEST.val())
-            				throw new BadJumpDestinationException();
+                    	if(program.getPreviouslyExecutedOp() < OpCode.PUSH1.val() || program.getPreviouslyExecutedOp() > OpCode.PUSH32.val()) {
+                    		if (nextPC != 0 && program.getOp(nextPC) != OpCode.JUMPDEST.val())
+                				throw program.new BadJumpDestinationException();
+                    	}
+
+                        // todo: in case destination is not JUMPDEST, check if prev was strict push
+                        // todo: in EP: (ii) If a jump is preceded by a push, no jumpdest required;
 
                         if (logger.isInfoEnabled())
                             hint = "~> " + nextPC;
@@ -827,7 +896,9 @@ public class VM {
                     int nPush = op.val() - PUSH1.val() + 1;
 
                     byte[] data = program.sweep(nPush);
-                    hint = "" + Hex.toHexString(data);
+
+                    if (logger.isInfoEnabled())
+                    	hint = "" + Hex.toHexString(data);
 
                     program.stackPush(data);
                 }	break;
@@ -870,12 +941,12 @@ public class VM {
 								program.getGas().value(),
 								program.invokeData.getCallDeep(), hint);
                     }
-
+                    
 					MessageCall msg = new MessageCall(
 							op.equals(CALL) ? MsgType.CALL : MsgType.STATELESS,
 							gas, codeAddress, value, inDataOffs, inDataSize,
 							outDataOffs, outDataSize);
-                    program.callToAddress(msg);
+					program.callToAddress(msg);
 
                     program.step();
                 }	break;
@@ -884,7 +955,12 @@ public class VM {
                     DataWord size     =  program.stackPop();
 
                     ByteBuffer hReturn = program.memoryChunk(offset, size);
-                    program.setHReturn(hReturn);
+                    if (hReturn.array().length * 5 <= program.getGas().longValue()){
+                        program.spendGas(hReturn.array().length * 5, op.name());
+                        program.setHReturn(hReturn);
+                    } else {
+                        program.setHReturn(ByteBuffer.wrap(new byte[]{}));
+                    }
 
                     if (logger.isInfoEnabled())
                         hint = "data: " + Hex.toHexString(hReturn.array())
@@ -907,6 +983,8 @@ public class VM {
                 	break;
             }
             
+            program.setPreviouslyExecutedOp(op.val());
+            
 			if (logger.isInfoEnabled() && !op.equals(CALL)
 					&& !op.equals(CREATE))
 				logger.info(logString, stepBefore, String.format("%-12s",
@@ -915,9 +993,8 @@ public class VM {
 			
 			vmCounter++;
         } catch (RuntimeException e) {
-        	if(e instanceof OutOfGasException)
-               	program.spendAllGas();
-            logger.warn("VM halted", e.getMessage());
+        	logger.warn("VM halted: [{}]", e.toString());
+        	program.spendAllGas();
            	program.stop();
            	throw e;
         } finally {
@@ -933,9 +1010,14 @@ public class VM {
             // charged by CALL op
             if (program.invokeData.byTransaction()) {
                 program.spendGas(GasCost.TRANSACTION, "TRANSACTION");
-                program.spendGas(GasCost.TXDATA * program.invokeData.getDataSize().intValue(), "DATA");
-            }
+                int dataSize = program.invokeData.getDataSize().intValue();
+                int nonZeroesVals = program.invokeData.countNonZeroData();
+                int zeroVals = dataSize - nonZeroesVals;
 
+                program.spendGas(GasCost.TX_NO_ZERO_DATA * nonZeroesVals, "DATA");
+                program.spendGas(GasCost.TX_ZERO_DATA * zeroVals, "DATA");
+            }
+            
             while(!program.isStopped())
                 this.step(program);
 
@@ -1019,9 +1101,5 @@ public class VM {
 					level, contract, vmCounter, internalSteps, op,
 					gasBefore, gasCost, memWords);    	
     	}
-    }
-
-    @SuppressWarnings("serial")
-    public class BadJumpDestinationException extends RuntimeException {}
-    
+    }    
 }

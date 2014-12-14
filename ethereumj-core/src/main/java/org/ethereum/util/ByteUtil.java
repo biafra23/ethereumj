@@ -6,12 +6,14 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import org.ethereum.db.ByteArrayWrapper;
 import org.spongycastle.util.encoders.Hex;
 
 public class ByteUtil {
 
-	public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
-	
+    public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    public static final byte[] ZERO_BYTE_ARRAY = new byte[]{0};
+
     /**
      * Creates a copy of bytes and appends b to the end of it
      */
@@ -230,12 +232,24 @@ public class ByteUtil {
 		return baos.toByteArray();
 	}
 
+    public static int firstNonZeroByte(byte[] data){
+        int firstNonZero = -1;
+        int i = 0;
+        for (; i < data.length; ++i) {
+            if (data[i] != 0) {
+                firstNonZero = i;
+                break;
+            }
+        }
+        return firstNonZero;
+    }
+
 	public static byte[] stripLeadingZeroes(byte[] data) {
 
 		if (data == null)
 			return null;
 
-		int firstNonZero = 0;
+		int firstNonZero = firstNonZeroByte(data);
 		int i = 0;
 		for (; i < data.length; ++i) {
 			if (data[i] != 0) {
@@ -286,5 +300,40 @@ public class ByteUtil {
     	byte[] dest = ByteBuffer.allocate(32).array();
     	System.arraycopy(src, 0, dest, dest.length - src.length, src.length);
     	return dest;
+    }
+
+
+    public static ByteArrayWrapper wrap(byte[] data){
+        return new ByteArrayWrapper(data);
+    }
+
+    public static byte[] setBit(byte[] data, int pos, int val) {
+
+        if ( (data.length * 8) - 1 < pos )
+            throw new Error("outside byte array limit, pos: " + pos);
+
+        int posByte  = data.length - 1 - (pos) / 8;
+        int posBit   = (pos) % 8;
+        byte setter  = (byte)(1 << (posBit));
+        byte toBeSet = data[posByte];
+        byte result;
+        if(val == 1)
+            result = (byte)(toBeSet | setter);
+        else
+            result = (byte)(toBeSet & ~setter);
+
+        data[posByte] = result;
+        return data;
+    }
+
+    public static int getBit(byte[] data, int pos) {
+
+        if ((data.length * 8) - 1 < pos )
+            throw new Error("outside byte array limit, pos: " + pos);
+
+        int  posByte = data.length - 1 - pos / 8;
+        int  posBit = pos % 8;
+        byte dataByte = data[posByte];
+        return Math.min(1, (dataByte & (1 << (posBit))));
     }
 }

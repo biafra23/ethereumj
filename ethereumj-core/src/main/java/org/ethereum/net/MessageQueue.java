@@ -2,9 +2,15 @@ package org.ethereum.net;
 
 import io.netty.channel.ChannelHandlerContext;
 
+import org.ethereum.listener.EthereumListener;
+import org.ethereum.manager.WorldManager;
 import org.ethereum.net.message.*;
+import org.ethereum.net.p2p.PingMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -24,18 +30,21 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @author Roman Mandeleil
  */
+@Component
+@Scope("prototype")
 public class MessageQueue {
 
 	private static final Logger logger = LoggerFactory.getLogger("net");
 
 	private Queue<MessageRoundtrip> messageQueue = new ConcurrentLinkedQueue<>();
-	private PeerListener listener;
 	private ChannelHandlerContext ctx = null;
 	private final Timer timer = new Timer("MessageQueue");
 
-	public MessageQueue(PeerListener listener) {
-		this.listener = listener;
-	}
+    @Autowired
+    WorldManager worldManager;
+    boolean hasPing = false;
+
+    public MessageQueue(){}
 
     public void activate(ChannelHandlerContext ctx){
         this.ctx = ctx;
@@ -47,17 +56,24 @@ public class MessageQueue {
     }
 
 	public void sendMessage(Message msg) {
+
+        if (msg instanceof PingMessage && hasPing)
+            return;
+        if (msg instanceof PingMessage && !hasPing)
+            hasPing = true;
+
 		messageQueue.add(new MessageRoundtrip(msg));
 	}
 
 	public void receivedMessage(Message msg) throws InterruptedException {
 
-		if (listener != null)
-			listener.console("[Recv: " + msg + "]");
+        worldManager.getListener().trace("[Recv: " + msg + "]");
 
 		if (messageQueue.peek() != null) {
 			MessageRoundtrip messageRoundtrip = messageQueue.peek();
 			Message waitingMessage = messageRoundtrip.getMsg();
+
+            if (waitingMessage instanceof PingMessage) hasPing = false;
 
 			if (waitingMessage.getAnswerMessage() != null
 					&& msg.getClass() == waitingMessage.getAnswerMessage()) {
@@ -86,6 +102,9 @@ public class MessageQueue {
 			// TODO: retry logic || messageRoundtrip.hasToRetry()){
 
 			Message msg = messageRoundtrip.getMsg();
+
+            EthereumListener listener = worldManager.getListener();
+            listener.onSendMessage(msg);
 
 			ctx.writeAndFlush(msg);
 
