@@ -16,6 +16,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.hibernate4.LocalSessionFactoryBuilder;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 
 import java.sql.SQLException;
 import java.util.Properties;
@@ -110,5 +111,9 @@ public class EthereumFactory {
         }
 
         return factory.eth;
+    }
+
+    public static ApplicationContext getContext() {
+        return context;
     }
 }

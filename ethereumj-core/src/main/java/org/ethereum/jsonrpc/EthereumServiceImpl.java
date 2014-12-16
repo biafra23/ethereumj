@@ -1,11 +1,10 @@
 package org.ethereum.jsonrpc;
 
+import org.ethereum.core.Block;
 import org.ethereum.facade.Blockchain;
-import org.ethereum.manager.WorldManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,10 +13,8 @@ public class EthereumServiceImpl implements EthereumService {
     private static final Logger logger = LoggerFactory.getLogger("service");
 
     @Autowired
-    @Qualifier("main")
-    Blockchain blockChain;
-
-
+    //    @Qualifier("main")
+            Blockchain blockChain;
 
     @Override
     public String eth_coinbase() {
@@ -25,8 +22,9 @@ public class EthereumServiceImpl implements EthereumService {
     }
 
     @Override
-    public String eth_getBlockByNumber(long blockNr) {
-        return blockChain.getBlockByNumber(blockNr).toFlatString();
+    public Block eth_getBlockByNumber(long blockNr) {
+        Block block = blockChain.getBlockByNumber(blockNr);
+        return block;
     }
 
     @Override
