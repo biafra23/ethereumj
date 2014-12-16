@@ -1,12 +1,14 @@
 package org.ethereum.jsonrpc;
 
-import org.ethereum.core.Block;
+import org.ethereum.jsonrpc.model.BlockData;
 
 public interface EthereumService {
 
     public String eth_coinbase();
 
-    public Block eth_getBlockByNumber(long blockNr);
+    public BlockData eth_blockByNumber(long blockNr);
 
-    public String eth_getBlockByHash(byte[] hash);
+    public BlockData eth_blockByHash(String hash);
+
+    public String eth_balanceAt(String address);
 }
