@@ -4,7 +4,6 @@ import org.eclipse.jetty.annotations.AbstractDiscoverableAnnotationHandler;
 import org.eclipse.jetty.annotations.AnnotationConfiguration;
 import org.eclipse.jetty.annotations.AnnotationDecorator;
 import org.eclipse.jetty.annotations.AnnotationParser;
-import org.eclipse.jetty.annotations.AnnotationParser.DiscoverableAnnotationHandler;
 import org.eclipse.jetty.annotations.ClassNameResolver;
 import org.eclipse.jetty.annotations.WebFilterAnnotationHandler;
 import org.eclipse.jetty.annotations.WebListenerAnnotationHandler;
@@ -22,6 +21,7 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
+import org.springframework.context.ApplicationContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,9 +42,11 @@ public class WebServer {
 
     private Server server;
     private WebServerConfig config;
+    private ApplicationContext appContext;
 
-    public WebServer(WebServerConfig aConfig) {
+    public WebServer(ApplicationContext context, WebServerConfig aConfig) {
         config = aConfig;
+        appContext = context;
     }
 
     public void start() throws Exception {
@@ -82,11 +84,12 @@ public class WebServer {
     }
 
     private HandlerCollection createHandlers() {
-        WebAppContext _ctx = new WebAppContext();
-        _ctx.setContextPath("/");
-        _ctx.setBaseResource(Resource.newClassPathResource("META-INF/webapp"));
+        WebAppContext ctx = new WebAppContext();
+        ctx.getServletContext().setAttribute("appContext", appContext);
+        ctx.setContextPath("/");
+        ctx.setBaseResource(Resource.newClassPathResource("META-INF/webapp"));
 
-        _ctx.setConfigurations(new Configuration[] { new AnnotationConfiguration() {
+        ctx.setConfigurations(new Configuration[] { new AnnotationConfiguration() {
             @Override
             public void configure(WebAppContext context) throws Exception {
                 boolean metadataComplete = context.getMetaData().isMetaDataComplete();
@@ -187,7 +190,7 @@ public class WebServer {
 
         List<Handler> _handlers = new ArrayList<Handler>();
 
-        _handlers.add(_ctx);
+        _handlers.add(ctx);
 
         HandlerList _contexts = new HandlerList();
         _contexts.setHandlers(_handlers.toArray(new Handler[0]));

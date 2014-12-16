@@ -1,6 +1,7 @@
 package org.ethereum.jsonrpc;
 
 import org.ethereum.facade.EthereumFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.web.WebApplicationInitializer;
 import org.springframework.web.context.ContextLoaderListener;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
@@ -23,7 +24,7 @@ public class WebAppInitializer implements WebApplicationInitializer {
     private void registerListener(ServletContext aContext) {
         AnnotationConfigWebApplicationContext _root = createContext(ApplicationModule.class);
         aContext.addListener(new ContextLoaderListener(_root));
-        _root.setParent(EthereumFactory.getContext());
+        _root.setParent((ApplicationContext)aContext.getAttribute("appContext"));
     }
 
     private void registerDispatcherServlet(ServletContext aContext) {
