@@ -62,6 +62,13 @@ public class CLIInterface {
                     logger.info("Resetting db set to [{}]", resetStr);
                     CONFIG.setDatabaseReset(resetStr);
                 }
+
+                // enabled json-rpc
+                if (args[i].equals("-jsonrpc") && i + 1 < args.length){
+                    Boolean jsonRpcEnabled = interpret( args[i+1]);
+                    logger.info("JSON-RPC server: ", jsonRpcEnabled);
+                    CONFIG.setJsonRpcEnable(jsonRpcEnabled);
+                }
             }
             logger.info("");
         } catch (Throwable e) {
