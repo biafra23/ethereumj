@@ -34,6 +34,9 @@ public class EthereumFactory {
 
     private static final Logger logger = LoggerFactory.getLogger("general");
 
+//    static {
+//        context = new AnnotationConfigApplicationContext(EthereumFactory.class);
+//    }
     @Bean
     public SessionFactory sessionFactory() throws SQLException {
         LocalSessionFactoryBuilder builder =

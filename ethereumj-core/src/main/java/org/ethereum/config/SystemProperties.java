@@ -46,7 +46,10 @@ public class SystemProperties {
     private static Boolean  DEFAULT_VM_TRACE     = false;
     private static String   DEFAULT_VM_TRACE_DIR = "dmp";
     private static int      DEFAULT_PEER_LISTEN_PORT = 30303;
-    
+    private static Boolean  DEFAULT_JSONRPC_ENABLED = false;
+    private static int      DEFAULT_JSONRPC_LISTEN_PORT = 8080;
+    private static String   DEFAULT_JSONRPC_LISTEN_IP = "127.0.0.1";
+
     /* Testing */
     private static Boolean  DEFAULT_VMTEST_LOAD_LOCAL = false;
 
@@ -271,6 +274,33 @@ public class SystemProperties {
     public void setListenPort(Integer port){
         prop.setProperty("peer.listen.port", port.toString());
     }
+
+	public Integer jsonRpcListenPort(){
+		if (prop.isEmpty()) return DEFAULT_JSONRPC_LISTEN_PORT;
+		return Integer.parseInt(prop.getProperty("jsonrpc.listen.port"));
+	}
+
+	public void setJsonRpcListenPort(Integer port){
+        prop.setProperty("jsonrpc.listen.port", port.toString());
+    }
+
+	public String jsonRpcListenIp(){
+		if (prop.isEmpty()) return DEFAULT_JSONRPC_LISTEN_IP;
+		return prop.getProperty("jsonrpc.listen.ip");
+	}
+
+	public void setJsonRpcListenPort(String port){
+		prop.setProperty("jsonrpc.listen.ip", port.toString());
+	}
+
+	public Boolean jsonRpcEnabled(){
+		if (prop.isEmpty()) return DEFAULT_JSONRPC_ENABLED;
+		return Boolean.parseBoolean(prop.getProperty("jsonrpc.enabled"));
+	}
+
+	public void setJsonRpcEnable(Boolean enabled){
+		prop.setProperty("jsonrpc.enabled", enabled.toString());
+	}
 
 	public void print() {
 		Enumeration<?> e = prop.propertyNames();

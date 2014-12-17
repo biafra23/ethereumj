@@ -1,6 +1,7 @@
 package org.ethereum.jsonrpc;
 
 public interface WebServerConfig {
+
     public String getServerName();
 
     public int getPort();
@@ -19,20 +20,21 @@ public interface WebServerConfig {
             return new Development(aName, aPort, anInterface);
         }
 
-        public static WebServerConfig newProductionConfig(String aName, int aPort, String anInterface, int aMinThreads, int aMaxThreads) {
+        public static WebServerConfig newProductionConfig(String aName, int aPort, String anInterface, int aMinThreads,
+                int aMaxThreads) {
             return new Production(aName, aPort, anInterface, aMinThreads, aMaxThreads);
         }
 
-        static abstract class AbstractWebServerConfig implements WebServerConfig
-        {
+        static abstract class AbstractWebServerConfig implements WebServerConfig {
+
             private String name;
             private int port;
             private String intf;
             private int minThreads;
             private int maxThreads;
 
-            private AbstractWebServerConfig(String aName, int aPort, String anInterface, int aMinThreads, int aMaxThreads)
-            {
+            private AbstractWebServerConfig(String aName, int aPort, String anInterface, int aMinThreads,
+                    int aMaxThreads) {
                 name = aName;
                 port = aPort;
                 intf = anInterface;
@@ -41,54 +43,46 @@ public interface WebServerConfig {
             }
 
             @Override
-            public String getServerName()
-            {
+            public String getServerName() {
                 return name;
             }
 
             @Override
-            public int getPort()
-            {
+            public int getPort() {
                 return port;
             }
 
             @Override
-            public String getHostInterface()
-            {
+            public String getHostInterface() {
                 return intf;
             }
 
             @Override
-            public int getMinThreads()
-            {
+            public int getMinThreads() {
                 return minThreads;
             }
 
             @Override
-            public int getMaxThreads()
-            {
+            public int getMaxThreads() {
                 return maxThreads;
             }
 
             @Override
-            public String getAccessLogDirectory()
-            {
+            public String getAccessLogDirectory() {
                 return String.format("./var/logs/$s/", name);
             }
         }
 
-        public static final class Development extends AbstractWebServerConfig
-        {
-            public Development(String aName, int aPort, String anInterface)
-            {
+        public static final class Development extends AbstractWebServerConfig {
+
+            public Development(String aName, int aPort, String anInterface) {
                 super(aName, aPort, anInterface, 5, 15);
             }
         }
 
-        public static final class Production extends AbstractWebServerConfig
-        {
-            public Production(String aName, int aPort, String anInterface, int aMinThreads, int aMaxThreads)
-            {
+        public static final class Production extends AbstractWebServerConfig {
+
+            public Production(String aName, int aPort, String anInterface, int aMinThreads, int aMaxThreads) {
                 super(aName, aPort, anInterface, aMinThreads, aMaxThreads);
             }
         }

@@ -19,27 +19,6 @@ public class BlockData {
     private long timestamp;
     private String transactionsRoot;
 
-    /*
-    {
-        "id" : 1,
-        "jsonrpc" : "2.0",
-        "result" : {
-            "difficulty" : "0x0327c5",
-            "extraData" : "0x0000000000000000000000000000000000000000000000000000000000000000",
-            "gasLimit" : 300018,
-            "hash" : "ee670ec64341771606e55d6b4ca35a1a6b75ee3d5145a99d05921026d1527331",
-            "minGasPrice" : "0x09184e72a000",
-            "miner" : "0x82022c34d173cf3b83c6e4553d627276fff6b66d",
-            "nonce" : "0xc2adfa12f40d142eb585b0b7892cd0841cf30dd18cb88940a5323df767f0db2f",
-            "number" : 1231,
-            "parentHash" : "0xaa322b7bd7418b4328f0c7b350359a86d6b9b698ef584937447743b082eed099",
-            "sha3Uncles" : "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-            "stateRoot" : "0x86df58f157e5ff5b77a6b1cddb43a2616acbaa7907087e0effb339e14c23a5db",
-            "timestamp" : 1416509555,
-            "transactionsRoot" : "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-        }
-    }
-     */
     public BlockData(Block block) {
         difficulty = "0x" + Hex.toHexString(block.getDifficulty());
         if(block.getExtraData() == null) {
