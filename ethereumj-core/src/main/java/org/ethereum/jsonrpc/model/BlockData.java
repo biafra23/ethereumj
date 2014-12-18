@@ -1,6 +1,8 @@
 package org.ethereum.jsonrpc.model;
 
 import org.ethereum.core.Block;
+import org.ethereum.core.BlockHeader;
+import org.ethereum.crypto.HashUtil;
 import org.spongycastle.util.encoders.Hex;
 
 public class BlockData {
@@ -19,16 +21,20 @@ public class BlockData {
     private long timestamp;
     private String transactionsRoot;
 
-    public BlockData(Block block) {
+    public BlockData(BlockHeader block) {
+        if (block == null) {
+            return;
+        }
         difficulty = "0x" + Hex.toHexString(block.getDifficulty());
-        if(block.getExtraData() == null) {
+        if (block.getExtraData() == null) {
             extraData = "0x0000000000000000000000000000000000000000000000000000000000000000";
         } else {
             extraData = "0x" + Hex.toHexString(block.getExtraData());
         }
         gasLimit = block.getGasLimit();
-        hash = Hex.toHexString(block.getHash());
-//        minGasPrice = "0x" + Long.toHexString(block.getGasUsed());
+        hash = Hex.toHexString(HashUtil.sha3(block.getEncoded()));
+        //TODO
+        //minGasPrice = "0x" + Long.toHexString(block.getGasUsed());
         miner = "0x" + Hex.toHexString(block.getCoinbase());
         nonce = "0x" + Hex.toHexString(block.getNonce());
         number = block.getNumber();
@@ -36,7 +42,8 @@ public class BlockData {
         sha3Uncles = "0x" + Hex.toHexString(block.getUnclesHash());
         stateRoot = "0x" + Hex.toHexString(block.getStateRoot());
         timestamp = block.getTimestamp();
-//        transactionsRoot = "0x" + Hex.toHexString(block.getTxTrieRoot());
+        //TODO
+        //transactionsRoot = "0x" + Hex.toHexString(block.getTxTrieRoot());
     }
 
     public String getDifficulty() {
