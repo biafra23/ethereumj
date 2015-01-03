@@ -9,14 +9,13 @@ import org.ethereum.jsonrpc.WebServerConfig;
 import static org.ethereum.config.SystemProperties.CONFIG;
 
 /**
- * www.etherj.com
+ * @author Roman Mandeleil
+ * @since 14.11.2014
  */
-
 public class Start {
 
     public static void main(String args[]) throws Exception {
         CLIInterface.call(args);
-
         Ethereum ethereum = EthereumFactory.createEthereum();
 
         if (CONFIG.jsonRpcEnabled()) {

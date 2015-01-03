@@ -4,33 +4,38 @@ import org.ethereum.core.AccountState;
 import org.ethereum.core.Block;
 import org.ethereum.facade.Repository;
 import org.ethereum.vm.DataWord;
+
 import org.iq80.leveldb.DBIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
+
 import java.util.HashMap;
+import java.util.Set;
 
 import static org.ethereum.crypto.SHA3Helper.sha3;
 import static org.ethereum.util.ByteUtil.wrap;
 
 /**
- * www.etherj.com
- *
- * @author: Roman Mandeleil
- * Created on: 17/11/2014 21:15
+ * @author Roman Mandeleil
+ * @since 17.11.2014
  */
-
 public class RepositoryTrack implements Repository {
 
     private static final Logger logger = LoggerFactory.getLogger("repository");
 
-
-    HashMap<ByteArrayWrapper, AccountState>    cacheAccounts = new HashMap<>();
-    HashMap<ByteArrayWrapper, ContractDetails> cacheDetails  = new HashMap<>();
+    HashMap<ByteArrayWrapper, AccountState> cacheAccounts = new HashMap<>();
+    HashMap<ByteArrayWrapper, ContractDetails> cacheDetails = new HashMap<>();
 
     Repository repository;
+
+    public RepositoryTrack() {
+        this.repository = new RepositoryDummy();
+    }
 
     public RepositoryTrack(Repository repository) {
         this.repository = repository;
@@ -39,7 +44,7 @@ public class RepositoryTrack implements Repository {
     @Override
     public AccountState createAccount(byte[] addr) {
 
-        logger.trace("createAccount: [{}]", Hex.toHexString(addr)) ;
+        logger.trace("createAccount: [{}]", Hex.toHexString(addr));
 
         AccountState accountState = new AccountState();
         cacheAccounts.put(wrap(addr), accountState);
@@ -55,7 +60,7 @@ public class RepositoryTrack implements Repository {
 
         AccountState accountState = cacheAccounts.get(wrap(addr));
 
-        if (accountState == null){
+        if (accountState == null) {
             repository.loadAccount(addr, cacheAccounts, cacheDetails);
             accountState = cacheAccounts.get(wrap(addr));
         }
@@ -63,11 +68,23 @@ public class RepositoryTrack implements Repository {
     }
 
     @Override
+    public boolean isExist(byte[] addr) {
+
+        AccountState accountState = cacheAccounts.get(wrap(addr));
+        if (accountState != null) return !accountState.isDeleted();
+
+        accountState = repository.getAccountState(addr);
+        return accountState != null && !accountState.isDeleted();
+
+    }
+
+
+    @Override
     public ContractDetails getContractDetails(byte[] addr) {
 
         ContractDetails contractDetails = cacheDetails.get(wrap(addr));
 
-        if (contractDetails == null){
+        if (contractDetails == null) {
             repository.loadAccount(addr, cacheAccounts, cacheDetails);
             contractDetails = cacheDetails.get(wrap(addr));
         }
@@ -77,12 +94,12 @@ public class RepositoryTrack implements Repository {
 
     @Override
     public void loadAccount(byte[] addr, HashMap<ByteArrayWrapper, AccountState> cacheAccounts,
-                               HashMap<ByteArrayWrapper, ContractDetails> cacheDetails){
+                            HashMap<ByteArrayWrapper, ContractDetails> cacheDetails) {
 
-        AccountState    accountState    = this.cacheAccounts.get(wrap(addr));
+        AccountState accountState = this.cacheAccounts.get(wrap(addr));
         ContractDetails contractDetails = this.cacheDetails.get(wrap(addr));
 
-        if (accountState == null){
+        if (accountState == null) {
             repository.loadAccount(addr, cacheAccounts, cacheDetails);
         } else {
             cacheAccounts.put(wrap(addr), accountState.clone());
@@ -94,7 +111,7 @@ public class RepositoryTrack implements Repository {
     @Override
     public void delete(byte[] addr) {
 
-        logger.trace("delete account: [{}]", Hex.toHexString(addr)) ;
+        logger.trace("delete account: [{}]", Hex.toHexString(addr));
         getAccountState(addr).setDeleted(true);
         getContractDetails(addr).setDeleted(true);
     }
@@ -116,6 +133,23 @@ public class RepositoryTrack implements Repository {
         return accountState.getNonce();
     }
 
+    public BigInteger setNonce(byte[] addr, BigInteger bigInteger) {
+        AccountState accountState = getAccountState(addr);
+
+        if (accountState == null)
+            accountState = createAccount(addr);
+
+        BigInteger saveNonce = accountState.getNonce();
+        accountState.setNonce(bigInteger);
+
+        logger.trace("increase nonce addr: [{}], from: [{}], to: [{}]", Hex.toHexString(addr),
+                saveNonce, accountState.getNonce());
+
+        return accountState.getNonce();
+
+    }
+
+
     @Override
     public BigInteger getNonce(byte[] addr) {
         AccountState accountState = getAccountState(addr);
@@ -132,7 +166,7 @@ public class RepositoryTrack implements Repository {
     public BigInteger addBalance(byte[] addr, BigInteger value) {
 
         AccountState accountState = getAccountState(addr);
-        if (accountState == null){
+        if (accountState == null) {
             accountState = createAccount(addr);
         }
 
@@ -177,6 +211,10 @@ public class RepositoryTrack implements Repository {
         throw new UnsupportedOperationException();
     }
 
+    public Set<ByteArrayWrapper> getFullAddressSet() {
+        return cacheAccounts.keySet();
+    }
+
 
     @Override
     public void dumpState(Block block, long gasUsed, int txNumber, byte[] txHash) {
@@ -191,7 +229,7 @@ public class RepositoryTrack implements Repository {
 
 
     @Override
-    public void flush(){
+    public void flush() {
         throw new UnsupportedOperationException();
     }
 
@@ -219,14 +257,14 @@ public class RepositoryTrack implements Repository {
     }
 
     @Override
-    public void updateBatch(HashMap<ByteArrayWrapper, AccountState>  accountStates,
-                            HashMap<ByteArrayWrapper, ContractDetails> contractDetailes){
+    public void updateBatch(HashMap<ByteArrayWrapper, AccountState> accountStates,
+                            HashMap<ByteArrayWrapper, ContractDetails> contractDetailes) {
 
-        for (ByteArrayWrapper hash : accountStates.keySet()){
+        for (ByteArrayWrapper hash : accountStates.keySet()) {
             cacheAccounts.put(hash, accountStates.get(hash));
         }
 
-        for (ByteArrayWrapper hash : contractDetailes.keySet()){
+        for (ByteArrayWrapper hash : contractDetailes.keySet()) {
             cacheDetails.put(hash, contractDetailes.get(hash));
         }
     }

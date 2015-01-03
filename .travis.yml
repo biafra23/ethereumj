@@ -1,8 +1,30 @@
 language: java
-
-env:
-  - JAVA_OPTS ="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M -XX:MaxPermSize=512M"
+jdk: oraclejdk8
 
 script:
-  - cd  ethereumj-core
-  - mvn clean test jacoco:report coveralls:jacoco
+  - ./gradlew build publish
+
+# publish coverage report to https://coveralls.io/r/ethereum/ethereumj
+after_success:
+  - ./gradlew jacocoTestReport coveralls
+
+notifications:
+  irc:
+    channels: chat.freenode.net#ethereumj
+    template:
+      - '%{message} (%{repository}#%{build_number}, %{duration})'
+      - '%{repository}/%{branch} %{commit} %{author}: %{commit_message}'
+      - '%{build_url}'
+    on_success: change
+    on_failure: always
+    use_notice: true
+    skip_join: true
+
+# Encrypted values are ORG_GRADLE_PROJECT_bintrayUser and ORG_GRADLE_PROJECT_bintrayKey props for use by Travis when
+# authenticating against oss.jfrog.org and/or Bintray repositories. See http://docs.travis-ci.com/user/encryption-keys
+# http://www.gradle.org/docs/current/userguide/tutorial_this_and_that.html#sec:gradle_properties_and_system_properties
+env:
+  global:
+    - secure: "BSdfBQsJi5VFcIF7Z50ddfjex60OZpd8OM7AxN+h93wxzBx/GD2bsWA9elwvrLFImByw5RIqE9xRvL4CioKZLgFiJCSFuPkf6I+6R6PsUhqklPvAJSXHlQXOM6bJD23rZewyfudh5JtqADVavY7vlXnmYXFeWKh8XdPYtRPlJV0="
+    - secure: "iZcZikUHrdaxsc5at1KT0M/6D4OHdU2WTd/aFIBKERXteGw+okq+s+VWghnELEq3YsKfYRJrkslcA6Mpcxq7KrUMsSSX1kZ1ifsk2151sU3+fJpIYQ9pCeWboLWSF//A7IdEe+zHpRVFuHVGU05OAalNCmJ52TEe3/M0YkY5+e8="
+    - JAVA_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled

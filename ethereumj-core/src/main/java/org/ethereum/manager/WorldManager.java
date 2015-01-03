@@ -1,6 +1,10 @@
 package org.ethereum.manager;
 
-import org.ethereum.core.*;
+import org.ethereum.core.Block;
+import org.ethereum.core.Genesis;
+import org.ethereum.core.Transaction;
+import org.ethereum.core.TransactionReceipt;
+import org.ethereum.core.Wallet;
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.db.BlockStore;
 import org.ethereum.facade.Blockchain;
@@ -10,24 +14,33 @@ import org.ethereum.listener.EthereumListenerWrapper;
 import org.ethereum.net.client.PeerClient;
 import org.ethereum.net.peerdiscovery.PeerDiscovery;
 import org.ethereum.net.server.ChannelManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.spongycastle.util.encoders.Hex;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.math.BigInteger;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.math.BigInteger;
-import java.util.*;
 
 import static org.ethereum.config.SystemProperties.CONFIG;
 
 /**
  * WorldManager is a singleton containing references to different parts of the system.
- * 
- * @author Roman Mandeleil 
- * Created on: 01/06/2014 10:44
+ *
+ * @author Roman Mandeleil
+ * @since 01.06.2014
  */
 @Component
 public class WorldManager {
@@ -35,13 +48,13 @@ public class WorldManager {
     private static final Logger logger = LoggerFactory.getLogger("general");
 
     @Autowired
-	private Blockchain blockchain;
+    private Blockchain blockchain;
 
     @Autowired
-	private Repository repository;
+    private Repository repository;
 
     @Autowired
-	private Wallet wallet;
+    private Wallet wallet;
 
     @Autowired
     private PeerClient activePeer;
@@ -57,12 +70,12 @@ public class WorldManager {
 
     @Autowired
     private AdminInfo adminInfo;
-    
+
     private final Set<Transaction> pendingTransactions = Collections.synchronizedSet(new HashSet<Transaction>());
 
-    
-    private EthereumListener listener = new EthereumListenerWrapper();
-    
+    @Autowired
+    private EthereumListener listener;
+
     @PostConstruct
     public void init() {
         byte[] cowAddr = HashUtil.sha3("cow".getBytes());
@@ -72,10 +85,10 @@ public class WorldManager {
         byte[] cbAddr = HashUtil.sha3(secret.getBytes());
         wallet.importKey(cbAddr);
     }
-	
+
     public void addListener(EthereumListener listener) {
         logger.info("Ethereum listener added");
-        ((EthereumListenerWrapper)this.listener).addListener(listener);
+        ((EthereumListenerWrapper) this.listener).addListener(listener);
     }
 
     public void startPeerDiscovery() {
@@ -88,7 +101,7 @@ public class WorldManager {
             peerDiscovery.stop();
     }
 
-    public void addPendingTransactions(Set<Transaction> transactions){
+    public void addPendingTransactions(Set<Transaction> transactions) {
         logger.info("Pending transaction list added: size: [{}]", transactions.size());
 
         if (listener != null)
@@ -96,41 +109,41 @@ public class WorldManager {
         pendingTransactions.addAll(transactions);
     }
 
-    public void clearPendingTransactions(List<Transaction> recivedTransactions){
+    public void clearPendingTransactions(List<Transaction> recivedTransactions) {
 
-        for (Transaction tx : recivedTransactions){
+        for (Transaction tx : recivedTransactions) {
             logger.info("Clear transaction, hash: [{}]", Hex.toHexString(tx.getHash()));
             pendingTransactions.remove(tx);
         }
     }
 
-    public ChannelManager getChannelManager(){
+    public ChannelManager getChannelManager() {
         return channelManager;
     }
 
     public PeerDiscovery getPeerDiscovery() {
-    	return peerDiscovery;
+        return peerDiscovery;
     }
 
     public EthereumListener getListener() {
         return listener;
     }
-    
-    public void setWallet(Wallet wallet)  {
-    	this.wallet = wallet;
+
+    public void setWallet(Wallet wallet) {
+        this.wallet = wallet;
     }
 
-	public Repository getRepository() {
-		return repository;
-	}
-	
-	public Blockchain getBlockchain() {
-		return blockchain;
-	}
-	
-	public Wallet getWallet() {
-		return wallet;
-	}
+    public Repository getRepository() {
+        return repository;
+    }
+
+    public Blockchain getBlockchain() {
+        return blockchain;
+    }
+
+    public Wallet getWallet() {
+        return wallet;
+    }
 
     public void setActivePeer(PeerClient peer) {
         this.activePeer = peer;
@@ -141,10 +154,10 @@ public class WorldManager {
     }
 
     public Set<Transaction> getPendingTransactions() {
-    	return pendingTransactions;
+        return pendingTransactions;
     }
 
-	public boolean isBlockchainLoading(){
+    public boolean isBlockchainLoading() {
         return blockchain.getQueue().size() > 2;
     }
 
@@ -180,14 +193,14 @@ public class WorldManager {
         }
 
 
-        if (CONFIG.rootHashStart() != null){
+        if (CONFIG.rootHashStart() != null) {
 
             // update world state by dummy hash
             byte[] rootHash = Hex.decode(CONFIG.rootHashStart());
             logger.info("Loading root hash from property file: [{}]", CONFIG.rootHashStart());
             this.repository.syncToRoot(rootHash);
 
-        } else{
+        } else {
 
             // Update world state to latest loaded block from db
             this.repository.syncToRoot(blockchain.getBestBlock().getStateRoot());
@@ -202,7 +215,7 @@ public class WorldManager {
 */
     }
 
-    public void reset(){
+    public void reset() {
         logger.info("Resetting blockchain ");
         repository.reset();
         blockchain.reset();

@@ -3,9 +3,12 @@ package org.ethereum.facade;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.net.eth.EthHandler;
 import org.ethereum.net.shh.ShhHandler;
+
 import org.hibernate.SessionFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -19,13 +22,12 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 
 import java.sql.SQLException;
+
 import java.util.Properties;
 
 /**
- * www.etherj.com
- *
- * @author: Roman Mandeleil
- * Created on: 13/11/2014 11:22
+ * @author Roman Mandeleil
+ * @since 13.11.2014
  */
 @Configuration
 @EnableTransactionManagement
@@ -65,7 +67,7 @@ public class EthereumFactory {
 
 
     @Bean
-    public DataSourceTransactionManager transactionManager(){
+    public DataSourceTransactionManager transactionManager() {
         DataSourceTransactionManager dataSourceTransactionManager = new DataSourceTransactionManager();
         dataSourceTransactionManager.setDataSource(dataSource());
 
@@ -73,18 +75,18 @@ public class EthereumFactory {
     }
 
     @Bean(name = "dataSource")
-    public DriverManagerDataSource dataSource(){
+    public DriverManagerDataSource dataSource() {
 
         logger.info("Connecting to the block store");
 
         System.setProperty("hsqldb.reconfig_logging", "false");
 
         String url =
-            String.format("jdbc:hsqldb:file:./%s/blockchain/blockchain.db;" +
-                            "create=%s;hsqldb.default_table_type=cached",
+                String.format("jdbc:hsqldb:file:./%s/blockchain/blockchain.db;" +
+                                "create=%s;hsqldb.default_table_type=cached",
 
-                    SystemProperties.CONFIG.databaseDir(),
-                    SystemProperties.CONFIG.databaseReset());
+                        SystemProperties.CONFIG.databaseDir(),
+                        SystemProperties.CONFIG.databaseReset());
 
         DriverManagerDataSource ds = new DriverManagerDataSource();
         ds.setDriverClassName("org.hsqldb.jdbcDriver");
@@ -103,12 +105,12 @@ public class EthereumFactory {
     private static EthereumFactory factory;
 
 
-    public static Ethereum createEthereum(){
+    public static Ethereum createEthereum() {
 
         logger.info("capability eth version: [{}]", EthHandler.VERSION);
         logger.info("capability shh version: [{}]", ShhHandler.VERSION);
 
-        if (context == null){
+        if (context == null) {
             context = new AnnotationConfigApplicationContext(EthereumFactory.class);
             factory = context.getBean(EthereumFactory.class);
         }
