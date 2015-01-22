@@ -3,6 +3,7 @@ package org.ethereum.listener;
 import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
 import org.ethereum.net.message.Message;
+import org.ethereum.net.p2p.HelloMessage;
 
 import java.util.Set;
 
@@ -15,7 +16,7 @@ public interface EthereumListener {
     public void trace(String output);
 
     public void onBlock(Block block);
-
+    
     public void onRecvMessage(Message message);
 
     public void onSendMessage(Message message);
@@ -27,4 +28,7 @@ public interface EthereumListener {
     public void onSyncDone();
 
     public void onNoConnections();
+
+    public void onHandShakePeer(HelloMessage helloMessage);
+
 }

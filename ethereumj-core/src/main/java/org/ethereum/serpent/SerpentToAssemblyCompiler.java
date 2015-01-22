@@ -81,7 +81,7 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
     @Override
     public String visitIf_elif_else_stmt(@NotNull SerpentParser.If_elif_else_stmtContext ctx) {
 
-        StringBuffer retCode = new StringBuffer();
+        StringBuilder retCode = new StringBuilder();
 
         int endOfStmtLabel = labelIndex++;
 
@@ -155,19 +155,15 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
         SerpentParser.BlockContext whileBlock = (SerpentParser.BlockContext)
                 ctx.getChild(4);
 
-        String retCode =
-                String.format(" LABEL_%d %s NOT REF_%d JUMPI %s REF_%d JUMP LABEL_%d ",
-                        whileStartRef, visitCondition(whileCondition), whileEndRef, visitBlock(whileBlock),
-                        whileStartRef, whileEndRef);
-        return retCode;
+        return String.format(" LABEL_%d %s NOT REF_%d JUMPI %s REF_%d JUMP LABEL_%d ",
+                whileStartRef, visitCondition(whileCondition), whileEndRef, visitBlock(whileBlock),
+                whileStartRef, whileEndRef);
     }
 
     @Override
     public String visitBlock(@NotNull SerpentParser.BlockContext ctx) {
 
-        String blockStmt = super.visitBlock(ctx);
-
-        return blockStmt;
+        return super.visitBlock(ctx);
     }
 
     @Override
@@ -192,13 +188,11 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
     public String visitAssign(@NotNull SerpentParser.AssignContext ctx) {
 
         String varName = ctx.VAR().toString();
-        int addr = 0;
 
         // msg assigned has two arrays to calc
         if (ctx.msg_func() != null) {
 
-            String msgCode = visitMsg_func(ctx.msg_func(), varName);
-            return msgCode;
+            return visitMsg_func(ctx.msg_func(), varName);
         } else if (ctx.arr_def() != null) {
             // if it's an array the all management is different
             String arrayCode = visitArr_def(ctx.arr_def());
@@ -211,7 +205,7 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
             return arrayCode;
         } else {
             String expression = visitExpression(ctx.expression());
-            addr = vars.indexOf(varName);
+            int addr = vars.indexOf(varName);
             if (addr == -1) {
                 addr = vars.size();
                 vars.add(varName);
@@ -668,7 +662,7 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
     public String visitAsm(@NotNull SerpentParser.AsmContext ctx) {
 
         int size = ctx.asm_symbol().getChildCount();
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 
         for (int i = 0; i < size; ++i) {
 
@@ -733,7 +727,7 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
         }
     }
 
-    private Integer getMsgOutputArraySize(String code) {
+    private static Integer getMsgOutputArraySize(String code) {
 
         String result = "0";
         Pattern pattern = Pattern.compile("<out_size ([0-9])* out_size>");
@@ -746,7 +740,7 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
         return Integer.parseInt(result);
     }
 
-    private Integer getMsgInputArraySize(String code) {
+    private static Integer getMsgInputArraySize(String code) {
 
         String result = "0";
         Pattern pattern = Pattern.compile("<in_size ([0-9])* in_size>");
@@ -759,14 +753,8 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
         return Integer.parseInt(result);
     }
 
-    private String cleanMsgString(String code) {
-
-        String result = "";
-
-        Pattern pattern = Pattern.compile("<(.*?)>");
-        result = code.replaceAll("<(.*?)>", "");
-
-        return result;
+    private static String cleanMsgString(String code) {
+        return code.replaceAll("<(.*?)>", "");
     }
 
 
@@ -774,7 +762,7 @@ public class SerpentToAssemblyCompiler extends SerpentBaseVisitor<String> {
      * After the array deff code is set
      * extract the size out of code string
      */
-    private Integer getArraySize(String code) {
+    private static Integer getArraySize(String code) {
 
         String result = "0";
         Pattern pattern = Pattern.compile(" [0-9]* SWAP MSTORE$");

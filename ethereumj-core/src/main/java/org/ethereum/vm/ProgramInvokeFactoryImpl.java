@@ -2,6 +2,8 @@ package org.ethereum.vm;
 
 import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
+import org.ethereum.db.BlockStore;
+import org.ethereum.db.BlockStoreImpl;
 import org.ethereum.facade.Blockchain;
 import org.ethereum.facade.Repository;
 import org.ethereum.util.ByteUtil;
@@ -28,17 +30,11 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
     @Autowired
     private Blockchain blockchain;
 
-    /**
-     * This attribute defines the number of recursive calls allowed in the EVM
-     * Note: For the JVM to reach this level without a StackOverflow exception,
-     * ethereumj may need to be started with a JVM argument to increase
-     * the stack size. For example: -Xss10m
-     */
-    private static final int MAX_DEPTH = 1024;
 
     // Invocation by the wire tx
     @Override
-    public ProgramInvoke createProgramInvoke(Transaction tx, Block block, Repository repository) {
+    public ProgramInvoke createProgramInvoke(Transaction tx, Block block, Repository repository, 
+                                             BlockStore blockStore) {
 
         // https://ethereum.etherpad.mozilla.org/26
         Block lastBlock = blockchain.getBestBlock();
@@ -123,12 +119,9 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
                     gaslimit);
         }
 
-        ProgramInvoke programInvoke =
-                new ProgramInvokeImpl(address, origin, caller, balance, gasPrice, gas, callValue, data,
-                        lastHash, coinbase, timestamp, number, difficulty, gaslimit,
-                        repository);
-
-        return programInvoke;
+        return new ProgramInvokeImpl(address, origin, caller, balance, gasPrice, gas, callValue, data,
+                lastHash, coinbase, timestamp, number, difficulty, gaslimit,
+                repository, blockStore);
     }
 
     /**
@@ -138,7 +131,7 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
     public ProgramInvoke createProgramInvoke(Program program, DataWord toAddress,
                                              DataWord inValue, DataWord inGas,
                                              BigInteger balanceInt, byte[] dataIn,
-                                             Repository repository) {
+                                             Repository repository, BlockStore blockStore) {
 
         DataWord address = toAddress;
         DataWord origin = program.getOriginAddress();
@@ -189,11 +182,8 @@ public class ProgramInvokeFactoryImpl implements ProgramInvokeFactory {
                     gasLimit.longValue());
         }
 
-        if (program.invokeData.getCallDeep() >= MAX_DEPTH)
-            throw program.new OutOfGasException();
-
         return new ProgramInvokeImpl(address, origin, caller, balance, gasPrice, gas, callValue,
                 data, lastHash, coinbase, timestamp, number, difficulty, gasLimit,
-                repository, program.invokeData.getCallDeep() + 1);
+                repository, program.invokeData.getCallDeep() + 1, blockStore);
     }
 }

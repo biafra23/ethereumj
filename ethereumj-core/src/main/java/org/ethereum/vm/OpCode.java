@@ -190,7 +190,7 @@ public enum OpCode {
      * (0x40) Get hash of most recent
      * complete block
      */
-    PREVHASH(0x40, 0),
+    BLOCKHASH(0x40, 1),
     /**
      * (0x41) Get the block’s coinbase address
      */
@@ -565,8 +565,8 @@ public enum OpCode {
      */
     SUICIDE(0xff, 1);
 
-    private byte opcode;
-    private int require;
+    private final byte opcode;
+    private final int require;
 
     private static final Map<Byte, OpCode> intToTypeMap = new HashMap<>();
     private static final Map<String, Byte> stringToByteMap = new HashMap<>();

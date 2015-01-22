@@ -15,21 +15,22 @@ import java.util.Set;
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class GitHubStateTest {
 
-    @Test
+    @Ignore
+    @Test // this method is mostly for hands-on convenient testing
     public void stSingleTest() throws ParseException {
-
         String json = JSONReader.loadJSON("StateTests/stSystemOperationsTest.json");
-        GitHubJSONTestSuite.runGitHubJsonStateTest(json, "createNameRegistrator");
+        GitHubJSONTestSuite.runGitHubJsonStateTest(json, "CallRecursiveBombLog2");
     }
 
     @Ignore
-    @Test
+    @Test // this method is mostly for hands-on convenient testing
     public void runWithExcludedTest() throws ParseException {
 
         Set<String> excluded = new HashSet<>();
-        excluded.add("createNameRegistratorValueTooHigh");
+        excluded.add("CallSha256_5");
 
-        String json = JSONReader.loadJSON("StateTests/stSystemOperationsTest.json");
+
+        String json = JSONReader.loadJSON("StateTests/stPreCompiledContracts.json");
         GitHubJSONTestSuite.runGitHubJsonStateTest(json, excluded);
     }
 
@@ -41,12 +42,17 @@ public class GitHubStateTest {
         GitHubJSONTestSuite.runGitHubJsonStateTest(json);
     }
 
-    @Ignore
-    @Test
+    @Test // todo: fix: excluded test
     public void stInitCodeTest() throws ParseException { // [V]
 
+        Set<String> excluded = new HashSet<>();
+        excluded.add("NotEnoughCashContractCreation");
+        excluded.add("CallContractToCreateContractOOG");
+        excluded.add("CallContractToCreateContractNoCash");
+        excluded.add("CallContractToCreateContractWhichWouldCreateContractInInitCode");
+
         String json = JSONReader.loadJSON("StateTests/stInitCodeTest.json");
-        GitHubJSONTestSuite.runGitHubJsonStateTest(json);
+        GitHubJSONTestSuite.runGitHubJsonStateTest(json, excluded);
     }
 
     @Test
@@ -56,7 +62,6 @@ public class GitHubStateTest {
         GitHubJSONTestSuite.runGitHubJsonStateTest(json);
     }
 
-    @Ignore
     @Test
     public void stPreCompiledContracts() throws ParseException {
 
@@ -64,7 +69,6 @@ public class GitHubStateTest {
         GitHubJSONTestSuite.runGitHubJsonStateTest(json);
     }
 
-    @Ignore
     @Test
     public void stRecursiveCreate() throws ParseException { // [V]
 
@@ -87,21 +91,39 @@ public class GitHubStateTest {
         GitHubJSONTestSuite.runGitHubJsonStateTest(json);
     }
 
-    @Ignore
-    @Test
-    public void stSystemOperationsTest() throws ParseException {
 
-        String json = JSONReader.loadJSON("StateTests/stSystemOperationsTest.json");
+    @Test
+    public void stBlockHashTest() throws ParseException {
+
+        String json = JSONReader.loadJSON("StateTests/stBlockHashTest.json");
         GitHubJSONTestSuite.runGitHubJsonStateTest(json);
     }
 
-
-    @Ignore
+    
     @Test
+    public void stSystemOperationsTest() throws ParseException {
+
+        Set<String> excluded = new HashSet<>();
+        excluded.add("createNameRegistratorZeroMem2");
+        excluded.add("createNameRegistratorZeroMem");
+        excluded.add("createNameRegistratorZeroMemExpansion");
+
+        
+        String json = JSONReader.loadJSON("StateTests/stSystemOperationsTest.json");
+        GitHubJSONTestSuite.runGitHubJsonStateTest(json, excluded);
+    }
+
+
+    @Test // todo: fix: excluded test
     public void stTransactionTest() throws ParseException {
 
+        Set<String> excluded = new HashSet<>();
+        excluded.add("EmptyTransaction");
+       //todo:    it goes OOG, because no gasLimit is given. So it does not change the state.
+        
+
         String json = JSONReader.loadJSON("StateTests/stTransactionTest.json");
-        GitHubJSONTestSuite.runGitHubJsonStateTest(json);
+        GitHubJSONTestSuite.runGitHubJsonStateTest(json, excluded);
     }
 
 

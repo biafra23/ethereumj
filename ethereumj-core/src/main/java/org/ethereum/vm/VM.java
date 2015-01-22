@@ -68,6 +68,7 @@ public class VM {
 
     private static BigInteger MAX_GAS = BigInteger.valueOf(Long.MAX_VALUE);
 
+
     /* Keeps track of the number of steps performed in this VM */
     private int vmCounter = 0;
 
@@ -503,7 +504,7 @@ public class VM {
                 case BYTE: {
                     DataWord word1 = program.stackPop();
                     DataWord word2 = program.stackPop();
-                    DataWord result = null;
+                    final DataWord result;
                     if (word1.value().compareTo(_32_) == -1) {
                         byte tmp = word2.getData()[word1.intValue()];
                         word2.and(DataWord.ZERO);
@@ -715,13 +716,16 @@ public class VM {
                 /**
                  * Block Information
                  */
-                case PREVHASH: {
-                    DataWord prevHash = program.getPrevHash();
+                case BLOCKHASH: {
+
+                    int blockIndex = program.stackPop().intValue();
+
+                    DataWord blockHash = program.getBlockHash(blockIndex);
 
                     if (logger.isInfoEnabled())
-                        hint = "prevHash: " + prevHash;
+                        hint = "blockHash: " + blockHash;
 
-                    program.stackPush(prevHash);
+                    program.stackPush(blockHash);
                     program.step();
                 }
                 break;
@@ -892,12 +896,8 @@ public class VM {
                 case JUMP: {
                     DataWord pos = program.stackPop();
                     int nextPC = pos.intValue(); // possible overflow
-                    if (program.getPreviouslyExecutedOp() < OpCode.PUSH1.val() || program.getPreviouslyExecutedOp() >
-                            OpCode.PUSH32.val()) {
-                        if (nextPC != 0 && program.getOp(nextPC) != OpCode.JUMPDEST.val())
-                            throw program.new BadJumpDestinationException();
-                    }
-
+                    program.validateJumpDest(nextPC);
+                    
                     if (logger.isInfoEnabled())
                         hint = "~> " + nextPC;
 
@@ -910,15 +910,9 @@ public class VM {
                     DataWord cond = program.stackPop();
 
                     if (!cond.isZero()) {
-                        int nextPC = pos.intValue(); // possible overflow
-                        if (program.getPreviouslyExecutedOp() < OpCode.PUSH1.val() || program.getPreviouslyExecutedOp
-                                () > OpCode.PUSH32.val()) {
-                            if (nextPC != 0 && program.getOp(nextPC) != OpCode.JUMPDEST.val())
-                                throw program.new BadJumpDestinationException();
-                        }
 
-                        // todo: in case destination is not JUMPDEST, check if prev was strict push
-                        // todo: in EP: (ii) If a jump is preceded by a push, no jumpdest required;
+                        int nextPC = pos.intValue(); // possible overflow
+                        program.validateJumpDest(nextPC);
 
                         if (logger.isInfoEnabled())
                             hint = "~> " + nextPC;
@@ -1048,12 +1042,21 @@ public class VM {
                                 program.getGas().value(),
                                 program.invokeData.getCallDeep(), hint);
                     }
+                    
+                    program.memoryExpand(outDataOffs, outDataSize);
 
                     MessageCall msg = new MessageCall(
                             op.equals(CALL) ? MsgType.CALL : MsgType.STATELESS,
                             gas, codeAddress, value, inDataOffs, inDataSize,
                             outDataOffs, outDataSize);
-                    program.callToAddress(msg);
+
+                    PrecompiledContracts.PrecompiledContract contract =  
+                            PrecompiledContracts.getContractForAddress(codeAddress);
+                    
+                    if (contract != null)
+                        program.callToPrecompiledAddress(msg, contract);
+                    else
+                        program.callToAddress(msg);
 
                     program.step();
                 }

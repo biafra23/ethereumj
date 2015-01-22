@@ -52,6 +52,8 @@ public class SystemProperties {
 	private static Boolean  DEFAULT_JSONRPC_ENABLED = false;
 	private static int      DEFAULT_JSONRPC_LISTEN_PORT = 8080;
 	private static String   DEFAULT_JSONRPC_LISTEN_IP = "127.0.0.1";
+    private static String DEFAULT_KEY_VALUE_DATA_SOURCE = "leveldb";
+
 
     /* Testing */
     private static Boolean DEFAULT_VMTEST_LOAD_LOCAL = false;
@@ -272,6 +274,12 @@ public class SystemProperties {
     public int listenPort() {
         if (prop.isEmpty()) return DEFAULT_PEER_LISTEN_PORT;
         return Integer.parseInt(prop.getProperty("peer.listen.port"));
+    }
+    
+    
+    public String getKeyValueDataSource(){
+        if (prop.isEmpty()) return DEFAULT_KEY_VALUE_DATA_SOURCE;
+        return prop.getProperty("keyvalue.datasource");
     }
 
     public void setListenPort(Integer port) {

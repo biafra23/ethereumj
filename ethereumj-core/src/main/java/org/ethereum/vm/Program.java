@@ -1,10 +1,12 @@
 package org.ethereum.vm;
 
 import org.ethereum.crypto.HashUtil;
+import org.ethereum.db.BlockStore;
 import org.ethereum.db.ContractDetails;
 import org.ethereum.facade.Repository;
 import org.ethereum.util.ByteUtil;
 import org.ethereum.vm.MessageCall.MsgType;
+import org.ethereum.vm.PrecompiledContracts.PrecompiledContract;
 import org.ethereum.vmtrace.Op;
 import org.ethereum.vmtrace.ProgramTrace;
 
@@ -26,11 +28,7 @@ import java.math.BigInteger;
 
 import java.nio.ByteBuffer;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 import static org.ethereum.config.SystemProperties.CONFIG;
 import static org.ethereum.util.ByteUtil.EMPTY_BYTE_ARRAY;
@@ -43,6 +41,14 @@ public class Program {
 
     private static final Logger logger = LoggerFactory.getLogger("VM");
     private static final Logger gasLogger = LoggerFactory.getLogger("gas");
+
+    /**
+     * This attribute defines the number of recursive calls allowed in the EVM
+     * Note: For the JVM to reach this level without a StackOverflow exception,
+     * ethereumj may need to be started with a JVM argument to increase
+     * the stack size. For example: -Xss10m
+     */
+    private static final int MAX_DEPTH = 1024;
 
     ProgramInvokeFactory programInvokeFactory = new ProgramInvokeFactoryImpl();
 
@@ -61,6 +67,8 @@ public class Program {
     byte lastOp = 0;
     byte previouslyExecutedOp = 0;
     boolean stopped = false;
+    
+    private Set<Integer> jumpdest = new HashSet<>();
 
     ProgramInvoke invokeData;
 
@@ -74,6 +82,7 @@ public class Program {
             this.programAddress = invokeData.getOwnerAddress();
             this.invokeHash = invokeData.hashCode();
             this.result.setRepository(invokeData.getRepository());
+            precompile();
         }
     }
 
@@ -206,6 +215,14 @@ public class Program {
     public void memorySave(int addr, byte[] value) {
         memorySave(addr, value.length, value);
     }
+    
+    public void memoryExpand(DataWord outDataOffs, DataWord outDataSize){
+
+        int maxAddress = outDataOffs.intValue() + outDataSize.intValue();
+        if (getMemSize() < maxAddress){
+            memorySave(maxAddress, new byte[]{0});
+        }
+    }
 
     /**
      * Allocates a piece of memory and stores value at given offset address
@@ -295,6 +312,11 @@ public class Program {
 
     public void createContract(DataWord value, DataWord memStart, DataWord memSize) {
 
+        if (invokeData.getCallDeep() == MAX_DEPTH){
+            stackPushZero();
+            return;
+        }
+
         // [1] FETCH THE CODE FROM THE MEMORY
         byte[] programCode = memoryChunk(memStart, memSize).array();
 
@@ -337,11 +359,11 @@ public class Program {
         // [5] COOK THE INVOKE AND EXECUTE
         ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(
                 this, new DataWord(newAddress), DataWord.ZERO, gasLimit,
-                newBalance, null, track);
+                newBalance, null, track, this.invokeData.getBlockStore());
 
         ProgramResult result = null;
 
-        if (programCode != null && programCode.length != 0) {
+        if (programCode.length != 0) {
             VM vm = new VM();
             Program program = new Program(programCode, programInvoke);
             vm.play(program);
@@ -351,8 +373,7 @@ public class Program {
         }
 
         if (result != null &&
-                result.getException() != null &&
-                result.getException() instanceof Program.OutOfGasException) {
+            result.getException() != null) {
             logger.debug("contract run halted by Exception: contract: [{}], exception: [{}]",
                     Hex.toHexString(newAddress),
                     result.getException());
@@ -404,6 +425,11 @@ public class Program {
      */
     public void callToAddress(MessageCall msg) {
 
+        if (invokeData.getCallDeep() == MAX_DEPTH){
+            stackPushZero();
+            return;
+        }
+
         byte[] data = memoryChunk(msg.getInDataOffs(), msg.getInDataSize()).array();
 
         // FETCH THE SAVED STORAGE
@@ -449,7 +475,7 @@ public class Program {
         Repository trackRepository = result.getRepository().startTracking();
         ProgramInvoke programInvoke = programInvokeFactory.createProgramInvoke(
                 this, new DataWord(contextAddress), msg.getEndowment(),
-                msg.getGas(), contextBalance, data, trackRepository);
+                msg.getGas(), contextBalance, data, trackRepository, this.invokeData.getBlockStore());
 
         ProgramResult result = null;
 
@@ -464,8 +490,7 @@ public class Program {
         }
 
         if (result != null &&
-                result.getException() != null &&
-                result.getException() instanceof Program.OutOfGasException) {
+                result.getException() != null) {
             gasLogger.debug("contract run halted by Exception: contract: [{}], exception: [{}]",
                     Hex.toHexString(contextAddress),
                     result.getException());
@@ -558,13 +583,21 @@ public class Program {
         return this.programAddress.clone();
     }
 
+    public DataWord getBlockHash(int index) {
+
+        return index < this.getNumber().longValue() && index >= Math.max(256, this.getNumber().intValue()) - 256?
+                new DataWord(this.invokeData.getBlockStore().getBlockHashByNumber(index)):
+                DataWord.ZERO;
+        
+    }
+
+
     public DataWord getBalance(DataWord address) {
         if (invokeData == null) return DataWord.ZERO_EMPTY_ARRAY;
 
         BigInteger balance = result.getRepository().getBalance(address.getLast20Bytes());
-        DataWord balanceData = new DataWord(balance.toByteArray());
 
-        return balanceData;
+        return new DataWord(balance.toByteArray());
     }
 
     public DataWord getOriginAddress() {
@@ -823,12 +856,27 @@ public class Program {
         return programTrace;
     }
 
+    public void precompile(){
+        for (int i = 0; i < ops.length; ++i){
+
+            OpCode op = OpCode.code(ops[i]);
+            if (op == null) continue;
+            
+            if (op.equals(OpCode.JUMPDEST)) jumpdest.add(i);
+            
+            if (op.asInt() >= OpCode.PUSH1.asInt() && op.asInt() <= OpCode.PUSH32.asInt()){
+                i += op.asInt() - OpCode.PUSH1.asInt() + 1;
+            }
+        }
+    }
+    
+    
     public static String stringify(byte[] code, int index, String result) {
         if (code == null || code.length == 0)
             return result;
 
         OpCode op = OpCode.code(code[index]);
-        byte[] continuedCode = null;
+        final byte[] continuedCode;
 
         switch(op) {
             case PUSH1:  case PUSH2:  case PUSH3:  case PUSH4:  case PUSH5:  case PUSH6:  case PUSH7:  case PUSH8:
@@ -854,6 +902,32 @@ public class Program {
 
     public void addListener(ProgramListener listener) {
         this.listener = listener;
+    }
+
+    public void validateJumpDest(int nextPC) {
+        if (!jumpdest.contains(nextPC)) throw new BadJumpDestinationException();
+    }
+
+    public void callToPrecompiledAddress(MessageCall msg, PrecompiledContract contract) {
+
+        byte[] data = this.memoryChunk( msg.getInDataOffs(), msg.getInDataSize()).array();
+
+        this.result.getRepository().addBalance(this.getOwnerAddress().getLast20Bytes(), msg.getEndowment().value().negate());
+        this.result.getRepository().addBalance(msg.getCodeAddress().getLast20Bytes(), msg.getEndowment().value());
+
+        long requiredGas =  contract.getGasForData(data);
+        if (requiredGas > msg.getGas().longValue()){
+
+            this.spendGas(msg.getGas().longValue(), "call pre-compiled");
+            this.stackPushZero();
+        } else {
+
+            this.spendGas(requiredGas, "call pre-compiled");
+            byte[] out = contract.execute(data);
+
+            this.memorySave( msg.getOutDataOffs().intValue(), out);
+            this.stackPushOne();
+        }
     }
 
     public interface ProgramListener {

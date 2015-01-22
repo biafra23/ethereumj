@@ -9,12 +9,9 @@ import org.ethereum.net.BlockQueue;
 import org.ethereum.net.server.ChannelManager;
 import org.ethereum.util.AdvancedDeviceUtils;
 import org.ethereum.vm.ProgramInvokeFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.spongycastle.util.encoders.Hex;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
@@ -23,9 +20,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-
 import java.math.BigInteger;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,7 +60,7 @@ import static org.ethereum.core.Denomination.SZABO;
 @Component
 public class BlockchainImpl implements Blockchain {
 
-    /* A scalar value equal to the mininum limit of gas expenditure per block */
+    /* A scalar value equal to the minimum limit of gas expenditure per block */
     private static long MIN_GAS_LIMIT = 125000L;
 
     private static final Logger logger = LoggerFactory.getLogger("blockchain");
@@ -337,7 +332,8 @@ public class BlockchainImpl implements Blockchain {
         for (Transaction tx : block.getTransactionsList()) {
             stateLogger.info("apply block: [{}] tx: [{}] ", block.getNumber(), i);
 
-            TransactionExecutor executor = new TransactionExecutor(tx, block.getCoinbase(), track,
+            TransactionExecutor executor = new TransactionExecutor(tx, block.getCoinbase(), 
+                    track, blockStore,
                     programInvokeFactory, block);
             executor.execute();
 

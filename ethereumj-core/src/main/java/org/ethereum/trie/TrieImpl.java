@@ -1,6 +1,7 @@
 package org.ethereum.trie;
 
 import org.ethereum.crypto.HashUtil;
+import org.ethereum.datasource.KeyValueDataSource;
 import org.ethereum.db.ByteArrayWrapper;
 import org.ethereum.util.Value;
 
@@ -54,11 +55,11 @@ public class TrieImpl implements Trie {
     private Object root;
     private Cache cache;
 
-    public TrieImpl(DB db) {
+    public TrieImpl(KeyValueDataSource db) {
         this(db, "");
     }
 
-    public TrieImpl(DB db, Object root) {
+    public TrieImpl(KeyValueDataSource db, Object root) {
         this.cache = new Cache(db);
         this.root = root;
         this.prevRoot = root;
@@ -107,7 +108,7 @@ public class TrieImpl implements Trie {
         byte[] k = binToNibbles(key);
         Value c = new Value(this.get(this.root, k));
 
-        return (c == null) ? null : c.asBytes();
+        return c.asBytes();
     }
 
     /**
@@ -365,7 +366,7 @@ public class TrieImpl implements Trie {
 
     private boolean isEmptyNode(Object node) {
         Value n = new Value(node);
-        return (node == null || (n.isString() && (n.asString() == "" || n.get(0).isNull())) || n.length() == 0);
+        return (node == null || (n.isString() && (n.asString().isEmpty() || n.get(0).isNull())) || n.length() == 0);
     }
 
     private Object[] copyNode(Value currentNode) {
@@ -382,9 +383,7 @@ public class TrieImpl implements Trie {
     @Override
     public boolean equals(Object trie) {
         if (this == trie) return true;
-        if (trie instanceof Trie)
-            return Arrays.equals(this.getRootHash(), ((Trie) trie).getRootHash());
-        return false;
+        return trie instanceof Trie && Arrays.equals(this.getRootHash(), ((Trie) trie).getRootHash());
     }
 
     @Override
@@ -414,7 +413,7 @@ public class TrieImpl implements Trie {
      *******************************/
 
     // Created an array of empty elements of required length
-    private Object[] emptyStringSlice(int l) {
+    private static Object[] emptyStringSlice(int l) {
         Object[] slice = new Object[l];
         for (int i = 0; i < l; i++) {
             slice[i] = "";
@@ -484,10 +483,10 @@ public class TrieImpl implements Trie {
 
     public String getTrieDump() {
 
-        String root = "";
         TraceAllNodes traceAction = new TraceAllNodes();
         this.scanTree(this.getRootHash(), traceAction);
 
+        final String root;
         if (this.getRoot() instanceof Value) {
             root = "root: " + Hex.toHexString(getRootHash()) + " => " + this.getRoot() + "\n";
         } else {
@@ -501,10 +500,6 @@ public class TrieImpl implements Trie {
     }
 
     public boolean validate() {
-
-        if (cache.get(getRootHash()) != null)
-            return true;
-        else
-            return false;
+        return cache.get(getRootHash()) != null;
     }
 }

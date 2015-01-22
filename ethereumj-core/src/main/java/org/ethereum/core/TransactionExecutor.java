@@ -1,5 +1,6 @@
 package org.ethereum.core;
 
+import org.ethereum.db.BlockStore;
 import org.ethereum.facade.Repository;
 import org.ethereum.vm.DataWord;
 import org.ethereum.vm.GasCost;
@@ -33,6 +34,8 @@ public class TransactionExecutor {
 
     private Transaction tx;
     private Repository track;
+    private BlockStore blockStore;
+    
     private ProgramInvokeFactory programInvokeFactory;
     private byte[] coinbase;
 
@@ -41,12 +44,13 @@ public class TransactionExecutor {
     private Block currentBlock;
 
 
-    public TransactionExecutor(Transaction tx, byte[] coinbase, Repository track,
+    public TransactionExecutor(Transaction tx, byte[] coinbase, Repository track,BlockStore blockStore,
                                ProgramInvokeFactory programInvokeFactory, Block currentBlock) {
 
         this.tx = tx;
         this.coinbase = coinbase;
         this.track = track;
+        this.blockStore = blockStore;
         this.programInvokeFactory = programInvokeFactory;
         this.currentBlock = currentBlock;
     }
@@ -87,8 +91,8 @@ public class TransactionExecutor {
 
 
         // FIND OUT THE TRANSACTION TYPE
-        byte[] receiverAddress = null;
-        byte[] code = EMPTY_BYTE_ARRAY;
+        final byte[] receiverAddress;
+        final byte[] code;
         boolean isContractCreation = tx.isContractCreation();
         if (isContractCreation) {
             receiverAddress = tx.getContractAddress();
@@ -118,7 +122,8 @@ public class TransactionExecutor {
         // the purchased gas will be available for
         // the contract in the execution state,
         // it can be retrieved using GAS op
-        if (track.getBalance(senderAddress).compareTo(gasDebit) == -1) {
+        BigInteger txValue = new BigInteger(1, tx.getValue());
+        if (track.getBalance(senderAddress).compareTo(gasDebit.add(txValue)) == -1) {
             logger.debug("No gas to start the execution: sender={}",
                     Hex.toHexString(senderAddress));
 
@@ -129,7 +134,6 @@ public class TransactionExecutor {
 
 
         // THE SIMPLE VALUE/BALANCE CHANGE
-        BigInteger txValue = new BigInteger(1, tx.getValue());
         if (track.getBalance(senderAddress).compareTo(txValue) >= 0) {
 
             track.addBalance(receiverAddress, txValue); // balance will be read again below
@@ -180,7 +184,7 @@ public class TransactionExecutor {
                 }
 
                 ProgramInvoke programInvoke =
-                        programInvokeFactory.createProgramInvoke(tx, currentBlock, trackTx);
+                        programInvokeFactory.createProgramInvoke(tx, currentBlock, trackTx, blockStore);
 
                 VM vm = new VM();
                 Program program = new Program(code, programInvoke);
@@ -220,8 +224,6 @@ public class TransactionExecutor {
 
         receipt.setCumulativeGas(gasUsed);
         this.receipt = receipt;
-        return;
-
     }
 
     /**

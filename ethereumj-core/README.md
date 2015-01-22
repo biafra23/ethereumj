@@ -6,7 +6,7 @@
 #### For snapshot builds:
 
  - Add https://oss.jfrog.org/libs-snapshot/ as a repository to your build script
- - Add a dependency on `org.ethereum:ethereumj-core:${VERSION}`, where `${VERSION}` is of the form `0.7.14-SNAPSHOT`.
+ - Add a dependency on `org.ethereum:ethereumj-core:${VERSION}`, where `${VERSION}` is of the form `0.8.1-SNAPSHOT`.
 
 Example:
 
@@ -20,7 +20,7 @@ Example:
     <dependency>
        <groupId>org.ethereum</groupId>
        <artifactId>ethereumj-core</artifactId>
-       <version>0.7.14-SNAPSHOT</version>
+       <version>0.8.1-SNAPSHOT</version>
     </dependency>
 
 #### For release builds:
@@ -59,4 +59,4 @@ Run `../gradlew install`.
 
 #### Publish ethereumj-core builds
 
-Simply push to master, and [the Travis CI build](https://travis-ci.org/ethereum/ethereumj) will take care of the rest. To publish manually instead, just run `../gradlew publish`. Where the artifacts are published depends on the value of the `version` property in the [root build.gradle file](../build.gradle). Snapshots (version values ending in `-SNAPSHOT`) will be published to oss.jfrog.org, while releases will be published to Bintray (and subsequently to JCenter). **You must be a member of the [ethereum Bintray organization](https://bintray.com/ethereum) and you must supply `bintrayUser` and `bintrayKey` properties to the Gradle build in order to authenticate against these repositories**. Configure these properties in your `$HOME/.gradle/gradle.properties` for greatest convenience and security.
+Simply push to master, and [the Travis CI build](https://travis-ci.org/ethereum/ethereumj) will take care of the rest. To publish manually instead, just run `../gradlew publish`. Where the artifacts are published depends on the value of the `version` property in the [root build.gradle file](../build.gradle). Snapshots (version values ending in `-SNAPSHOT`) will be published to [oss.jfrog.org](https://oss.jfrog.org/libs-snapshot/org/ethereum/), while releases will be published to [Bintray](https://bintray.com/ethereum/maven/org.ethereum/) (and subsequently to [JCenter](http://jcenter.bintray.com/org/ethereum/)). **You must be a member of the [ethereum Bintray organization](https://bintray.com/ethereum) and you must supply `bintrayUser` and `bintrayKey` properties to the Gradle build in order to authenticate against these repositories**. Configure these properties in your `$HOME/.gradle/gradle.properties` for greatest convenience and security.

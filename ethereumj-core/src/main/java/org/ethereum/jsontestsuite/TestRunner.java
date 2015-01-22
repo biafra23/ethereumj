@@ -2,6 +2,7 @@ package org.ethereum.jsontestsuite;
 
 import org.ethereum.core.BlockchainImpl;
 import org.ethereum.core.TransactionExecutor;
+import org.ethereum.db.BlockStoreDummy;
 import org.ethereum.db.ByteArrayWrapper;
 import org.ethereum.db.ContractDetails;
 import org.ethereum.db.RepositoryDummy;
@@ -60,11 +61,10 @@ public class TestRunner {
 
     public List<String> runTestCase(StateTestCase testCase) {
 
-        List<String> results = null;
+        List<String> results = new ArrayList<>();;
         logger.info("\n***");
         logger.info(" Running test case: [" + testCase.getName() + "]");
         logger.info("***\n");
-        results = new ArrayList<>();
 
         logger.info("--------- PRE ---------");
         RepositoryDummy repository = loadRepository(testCase.getPre());
@@ -88,15 +88,18 @@ public class TestRunner {
         blockchain.startTracking();
 
         Repository track = repository.startTracking();
-        TransactionExecutor executor = new TransactionExecutor(tx, coinbase, track,
-                invokeFactory, null);
+        TransactionExecutor executor = 
+                new TransactionExecutor(tx, coinbase,  track, new BlockStoreDummy(),  
+                        invokeFactory, blockchain.getBestBlock());
         executor.execute();
         track.commit();
 
         logger.info("compare results");
-
-        // todo: perform logs comparision
-        List<LogInfo> logs = executor.getResult().getLogInfoList();
+        
+        List<LogInfo> logs = null;
+        if (executor.getResult() != null)
+            logs = executor.getResult().getLogInfoList();
+        
         List<String> logResults = testCase.getLogs().compareToReal(logs);
         results.addAll(logResults);
 
@@ -115,8 +118,8 @@ public class TestRunner {
 
             AccountState expectedAccountState = testCase.getPost().get(wrap(addr));
             if (expectedAccountState == null) {
-                String formatedString = String.format("Unexpected account state: address: %s", Hex.toHexString(addr));
-                results.add(formatedString);
+                String formattedString = String.format("Unexpected account state: address: %s", Hex.toHexString(addr));
+                results.add(formattedString);
                 continue;
             }
 
@@ -129,7 +132,10 @@ public class TestRunner {
         int postRepoSize = testCase.getPost().size();
 
         if (postRepoSize > repoSize) {
-            results.add("ERROR: Post repository contains more accounts than executed repository ");
+            results.add("ERROR: Expected 'Post' repository contains more accounts than executed repository ");
+
+            logger.info("Full address set: " + fullAddressSet);
+            
         }
 
         return results;
@@ -166,7 +172,7 @@ public class TestRunner {
             byte[] coinbase = env.getCurrentCoinbase();
             long timestamp = new BigInteger(env.getCurrentTimestamp()).longValue();
             long number = new BigInteger(env.getCurrentNumber()).longValue();
-            byte[] difficulty = env.getCurrentDifficlty();
+            byte[] difficulty = env.getCurrentDifficulty();
             long gaslimit = new BigInteger(env.getCurrentGasLimit()).longValue();
 
             // Origin and caller need to exist in order to be able to execute
@@ -177,7 +183,7 @@ public class TestRunner {
 
             ProgramInvoke programInvoke = new ProgramInvokeImpl(address, origin, caller, balance,
                     gasPrice, gas, callValue, msgData, lastHash, coinbase,
-                    timestamp, number, difficulty, gaslimit, repository, true);
+                    timestamp, number, difficulty, gaslimit, repository, null, true);
 
             /* 3. Create Program - exec.code */
             /* 4. run VM */

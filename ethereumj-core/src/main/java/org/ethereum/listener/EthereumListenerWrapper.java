@@ -4,6 +4,7 @@ import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
 import org.ethereum.net.message.Message;
 
+import org.ethereum.net.p2p.HelloMessage;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
@@ -66,6 +67,12 @@ public class EthereumListenerWrapper implements EthereumListener {
     public void onNoConnections() {
         if (listener != null)
             listener.onNoConnections();
+    }
+
+    @Override
+    public void onHandShakePeer(HelloMessage helloMessage) {
+        if (listener != null)
+            listener.onHandShakePeer(helloMessage);
     }
 
     public void addListener(EthereumListener listener) {
