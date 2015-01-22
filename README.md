@@ -1,4 +1,4 @@
-# Welcome to ethereumj 
+# Welcome to ethereumj
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/ethereum/ethereumj?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/ethereum/ethereumj.svg?branch=master)](https://travis-ci.org/ethereum/ethereumj)
 [![Coverage Status](https://coveralls.io/repos/ethereum/ethereumj/badge.png?branch=master)](https://coveralls.io/r/ethereum/ethereumj?branch=master)
@@ -19,7 +19,7 @@ To see ethereum-studio in action, watch this [video](https://youtu.be/D5ok7jh7AO
 The Ethereum protocol is under heavy development, thus so is this implementation. See the [todo list](TODO.md), GitHub [Issues](https://github.com/ethereum/ethereumj/issues) and [milestone schedule](https://github.com/ethereum/ethereumj/milestones). Issues are prioritized using [waffle](http://waffle.io/ethereum/ethereumj).
 
 # Contact
-Chat with us via [Gitter](https://gitter.im/ethereum/ethereumj) or [#ethereumj](webchat.freenode.net/?channels=ethereumj) on Freenode.
+Chat with us via [Gitter](https://gitter.im/ethereum/ethereumj) or [#ethereumj](https://webchat.freenode.net/?channels=ethereumj) on Freenode.
 
 # Building from source
 

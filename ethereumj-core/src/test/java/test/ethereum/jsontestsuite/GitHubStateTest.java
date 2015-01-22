@@ -99,16 +99,12 @@ public class GitHubStateTest {
         GitHubJSONTestSuite.runGitHubJsonStateTest(json);
     }
 
-    
+
     @Test
     public void stSystemOperationsTest() throws ParseException {
 
         Set<String> excluded = new HashSet<>();
-        excluded.add("createNameRegistratorZeroMem2");
-        excluded.add("createNameRegistratorZeroMem");
-        excluded.add("createNameRegistratorZeroMemExpansion");
 
-        
         String json = JSONReader.loadJSON("StateTests/stSystemOperationsTest.json");
         GitHubJSONTestSuite.runGitHubJsonStateTest(json, excluded);
     }
@@ -119,8 +115,8 @@ public class GitHubStateTest {
 
         Set<String> excluded = new HashSet<>();
         excluded.add("EmptyTransaction");
-       //todo:    it goes OOG, because no gasLimit is given. So it does not change the state.
-        
+        //todo:    it goes OOG, because no gasLimit is given. So it does not change the state.
+
 
         String json = JSONReader.loadJSON("StateTests/stTransactionTest.json");
         GitHubJSONTestSuite.runGitHubJsonStateTest(json, excluded);

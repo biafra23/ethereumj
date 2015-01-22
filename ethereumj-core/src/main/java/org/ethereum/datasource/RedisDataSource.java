@@ -1,11 +1,12 @@
 package org.ethereum.datasource;
 
-import org.ethereum.db.Database;
-import org.ethereum.db.DatabaseImpl;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.ethereum.config.SystemProperties.CONFIG;
@@ -28,7 +29,9 @@ public class RedisDataSource implements KeyValueDataSource{
     public void init() {
         
         if (name == null) throw new NullPointerException("no name set to the db");
-        this.jedis = new Jedis("localhost"); // todo: config.redisHost, config.redisPort
+        
+        this.jedis = RedisPool.getResource(name);
+        if (jedis == null) this.jedis = new Jedis("localhost");
         
         if (CONFIG.databaseReset())
             this.jedis.flushAll();
@@ -42,19 +45,16 @@ public class RedisDataSource implements KeyValueDataSource{
     
     @Override
     public byte[] get(byte[] key) {
-        jedis.select(index);
         return jedis.get(key);
     }
 
     @Override
     public void put(byte[] key, byte[] value) {
-        jedis.select(index);
         jedis.set(key, value);
     }
 
     @Override
     public void delete(byte[] key) {
-        jedis.select(index);
         jedis.del(key);
     }
 
@@ -65,7 +65,6 @@ public class RedisDataSource implements KeyValueDataSource{
 
     @Override
     public void updateBatch(Map<byte[], byte[]> rows) {
-        jedis.select(index);
         Pipeline pipeline = jedis.pipelined();
 
         Iterator<Map.Entry<byte[], byte[]>> iterator = rows.entrySet().iterator();
