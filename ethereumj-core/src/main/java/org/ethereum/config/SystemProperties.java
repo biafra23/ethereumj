@@ -50,7 +50,9 @@ public class SystemProperties {
     private final static String DEFAULT_VM_TRACE_DIR = "dmp";
     private final static int DEFAULT_PEER_LISTEN_PORT = 30303;
     private final static String DEFAULT_KEY_VALUE_DATA_SOURCE = "leveldb";
-
+    private static Boolean  DEFAULT_JSONRPC_ENABLED = false;
+    private static int      DEFAULT_JSONRPC_LISTEN_PORT = 8080;
+    private static String   DEFAULT_JSONRPC_LISTEN_IP = "127.0.0.1";
 
     /* Testing */
     private final static Boolean DEFAULT_VMTEST_LOAD_LOCAL = false;
